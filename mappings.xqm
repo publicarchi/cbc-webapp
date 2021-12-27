@@ -36,8 +36,8 @@ declare namespace map = "http://www.w3.org/2005/xpath-functions/map" ;
 declare namespace xf = "http://www.w3.org/2002/xforms" ;
 declare namespace xlink = "http://www.w3.org/1999/xlink" ;
 
-declare namespace cbc = "cbc" ;
-declare default element namespace "cbc" ;
+declare namespace cbc = "http://conbavil.fr/namespace" ;
+declare default element namespace "http://conbavil.fr/namespace" ;
 declare default function namespace "cbc.mappings" ;
 
 declare default collation "http://basex.org/collation?lang=fr" ;
@@ -82,7 +82,9 @@ declare function jsoner($queryParams as map(*), $data as map(*), $outputParams a
  : @return a map with array instead of sequences
  : @rmq deals only with right keys
  :)
-declare function sequence2ArrayInMap($queryParams, $map as map(*), $outputParams) as map(*) {
+declare function sequence2ArrayInMap($queryParams, $map as map(*)*, $outputParams) as map(*) {
+for $content in $map
+return
   map:merge((
     map:for-each(
       $map,
@@ -90,35 +92,12 @@ declare function sequence2ArrayInMap($queryParams, $map as map(*), $outputParams
         map:entry(
           $a ,
           if (fn:count($b) > 1)
-          then array{ dispatch($b, $queryParams, $outputParams) }
-          else dispatch($b, $queryParams, $outputParams)
+          then array{ $b } (: @quest call dispatch ? :)
+          else $b
         )
       }
     )
   ))
-};
-
-declare function dispatch($b as item()*, $queryParams, $outputParams) {
-  typeswitch($b)
-    case empty-sequence() return ()
-    case map(*)+ return $b ! sequence2ArrayInMap($queryParams, ., $outputParams)
-    case xs:string return $b
-    case xs:string+ return $b
-    (: case xs:anyAtomicType return fn:data($b)
-    case xs:anyAtomicType+ return $b ! fn:data(.) :)
-    case xs:integer return fn:data($b)
-    case xs:double return fn:format-number($b, "0.00")
-    case array(*) return array:for-each($b, function($i){
-      dispatch($i, $queryParams, $outputParams)
-    })
-    case attribute() return fn:string($b)
-    case text() return fn:string($b)
-    default return render($queryParams, $outputParams, $b)/node()
-      => fn:serialize(map {'method' : 'html'})
-};
-
-declare function recurse($queryParams, $map as map(*), $outputParams) {
-  sequence2ArrayInMap($queryParams, $map, $outputParams)
 };
 
 (:~
@@ -148,4 +127,58 @@ declare function render($queryParams as map(*), $outputParams as map(*), $value 
                  then xslt:transform($node, cbc.models:getXsltPath($queryParams, $xsl))
                  else xslt:transform($node, cbc.models:getXsltPath($queryParams, $xsl), $params)
       else $value
+};
+
+declare function cbc.mappings:entry($value, $options) {
+ ''
+};
+
+declare function cbc.mappings:toto($value, $options) {
+ ''
+};
+
+
+(:~
+ : this function dispatches the treatment of the XML document
+ :)
+declare
+  %output:indent('no')
+function dispatch($node as node()*, $options as map(*)) as item()* {
+  typeswitch($node)
+    case text() return $node[fn:normalize-space(.)!='']
+    case element(cbc:hi) return $node ! hi(., $options)
+    case element(cbc:emph) return $node ! emph(., $options)
+    default return $node ! passthru(., $options)
+};
+
+(:~
+ : This function pass through child nodes (xsl:apply-templates)
+ :)
+declare
+  %output:indent('no')
+function passthru($nodes as node(), $options as map(*)) as item()* {
+  for $node in $nodes/node()
+  return dispatch($node, $options)
+};
+
+(:~
+ : ~:~:~:~:~:~:~:~:~
+ : tei inline
+ : ~:~:~:~:~:~:~:~:~
+ :)
+declare function hi($node as element(cbc:hi)+, $options as map(*)) {
+  switch ($node)
+  case ($node[@rend='italic' or @rend='it']) return <em>{ passthru($node, $options) }</em>
+  case ($node[@rend='bold' or @rend='b']) return <strong>{ passthru($node, $options) }</strong>
+  case ($node[@rend='superscript' or @rend='sup']) return <sup>{ passthru($node, $options) }</sup>
+  case ($node[@rend='underscript' or @rend='sub']) return <sub>{ passthru($node, $options) }</sub>
+  case ($node[@rend='underline' or @rend='u']) return <u>{ passthru($node, $options) }</u>
+  case ($node[@rend='strikethrough']) return <del class="hi">{ passthru($node, $options) }</del>
+  case ($node[@rend='caps' or @rend='uppercase']) return <span calss="uppercase">{ passthru($node, $options) }</span>
+  case ($node[@rend='smallcaps' or @rend='sc']) return <span class="small-caps">{ passthru($node, $options) }</span>
+  default return <span class="{$node/@rend}">{ passthru($node, $options) }</span>
+};
+
+declare function emph($node as element(cbc:emph), $options as map(*)) {
+  <em class="emph">{ passthru($node, $options) }</em>
 };

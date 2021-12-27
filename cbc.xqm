@@ -19,7 +19,7 @@ module namespace cbc.rest = "cbc.rest" ;
 import module namespace G = "cbc.globals" at './globals.xqm' ;
 
 import module namespace cbc.mappings = "cbc.mappings" at './mappings.xqm' ;
-import module namespace cbc.models = 'models' at './models.xqm' ;
+import module namespace cbc.models = 'cbc.models' at './models.xqm' ;
 import module namespace Session = 'http://basex.org/modules/session';
 
 declare namespace rest = "http://exquery.org/ns/restxq" ;
@@ -38,8 +38,8 @@ declare namespace map = "http://www.w3.org/2005/xpath-functions/map" ;
 declare namespace xf = "http://www.w3.org/2002/xforms" ;
 declare namespace xlink = "http://www.w3.org/1999/xlink" ;
 
-declare namespace cbc = "cbc" ;
-declare default element namespace "cbc" ;
+declare namespace cbc = "http://conbavil.fr/namespace" ;
+declare default element namespace "http://conbavil.fr/namespace" ;
 declare default function namespace "cbc.rest" ;
 
 declare default collation "http://basex.org/collation?lang=fr" ;
@@ -52,7 +52,52 @@ declare
   %rest:path("/cbc/home")
   %output:method("xml")
 function home() {
-  web:redirect("/cbc/rapports/view")
+  web:redirect("/cbc/rapports")
+};
+
+(:~
+ : This resource function lists all the files
+ : @return an ordered list of report in xml
+ :)
+declare
+  %rest:path("/cbc/files")
+  %rest:produces('application/json')
+  %output:media-type('application/json')
+  %output:method('json')
+function getFiles() {
+  let $queryParams := map {}
+  let $data := db:open("cbc")//file
+  let $outputParams := map {}
+  return array{
+    for $file in $data return
+    map {
+      "title" : fn:normalize-space($file/title) , (: @todo deal with mix content:)
+      "idno" : fn:normalize-space($file/idno)
+    }
+  }
+};
+
+(:~
+ : This resource function lists all the meetings
+ : @return an ordered list of report in xml
+ :)
+declare
+  %rest:path("/cbc/meetings")
+  %rest:produces('application/json')
+  %output:media-type('application/json')
+  %output:method('json')
+function getMeetings() {
+  let $queryParams := map {}
+  let $data := db:open("cbc")//meeting
+  let $outputParams := map {}
+  return array{
+    for $meeting in $data return
+    map {
+      "title" : $meeting/title => fn:normalize-space(), (: @todo deal with mix content:)
+      "date" : $meeting/date => fn:normalize-space(),
+      "idno" : $meeting/parent::file/idno => fn:normalize-space()
+    }
+  }
 };
 
 (:~
@@ -60,30 +105,13 @@ function home() {
  : @return an ordered list of report in xml
  :)
 declare
-  %rest:path("/xpr/rapports")
-  %rest:produces('application/xml')
-  %output:method("xml")
-function getReports() {
-  db:open('cbc')/cbc/rapports
-};
-
-(:~
- : This resource function lists all the expertises
- : @return an ordered list of expertises in html
- :)
-declare
-  %rest:path("/xpr/rapports")
+  %rest:path("/cbc/deliberations")
   %rest:produces('application/json')
   %output:media-type('application/json')
   %output:method('json')
-function getReportsJson() {
-  let $content := map {
-    'title' : 'Liste des rapports',
-    'data' : getReports()
-  }
-  let $outputParam := map {
-    'layout' : "listReports.xml",
-    'mapping' : cbc.mappings:listC2html(map:get($content, 'data'), map{})
-  }
-  return cbc.mappings:jsoner($queryParams, $result, $outputParams)
+function getReports() {
+  let $content := db:open("cbc")
+  return map
 };
+
+

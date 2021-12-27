@@ -35,7 +35,8 @@ declare namespace map = "http://www.w3.org/2005/xpath-functions/map" ;
 declare namespace xf = "http://www.w3.org/2002/xforms" ;
 declare namespace xlink = "http://www.w3.org/1999/xlink" ;
 
-declare namespace cbc = "cbc" ;
+declare namespace cbc = "http://conbavil.fr/namespace" ;
+declare default element namespace "http://conbavil.fr/namespace" ;
 declare default function namespace "cbc.models" ;
 
 declare default collation "http://basex.org/collation?lang=fr" ;
