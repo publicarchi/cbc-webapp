@@ -1,0 +1,127 @@
+/*
+ * CSS stylesheet for the cbc app
+ *
+ * @author emchateau
+ * @since 2021-12-26
+ * @licence GNU http://www.gnu.org/licenses
+ * @version 0.1
+ *
+ * cbc is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+/* indigo theme */
+:root {
+    --colorMain: #fdfdfe;
+    --colorSub: #3f51b5; /* #E73E0D */;
+    --colorTint: #FFE1D5;
+    --colorAccent: #3f51b5; /* #E73E0D */;
+    --baseline: 1.5; /* 1.5 * 18 = 27px*/
+    font-size: 1.125em; /* 18px */
+    line-height: var(--baseline);
+}
+
+body {
+    background-color: var(--colorSub);
+    color: var(--colorMain);
+}
+
+/*
+ * Navigation
+ */
+nav {
+    width: 100%;
+    line-height: calc(var(--baseline)* 1.5rem);
+    background: var(--colorSub);
+    text-align: center;
+    margin: 0;
+    padding: 0;
+}
+
+nav ul {
+    display: flex;
+    justify-content: center;
+    list-style-type: none;
+    max-width: 47em;
+    margin: 0 auto;
+    padding: 0;
+}
+
+nav ul a {
+    display: block;
+    padding: 0.02rem 1.4rem;
+    font-weight: bolder;
+}
+
+nav ul li:first-child {
+    margin-right: auto;
+}
+
+/* applied after scroll height reached */
+.fixed-nav #navigation {
+    position: fixed;
+    top: 0;
+    z-index: 2;
+    /*box-shadow: 0 0.005em 0.5em 0.01em var(--colorSub);*/
+}
+
+/* applied after scroll height reached */
+.fixed-nav #navForm {
+    position: fixed;
+    z-index: 1;
+
+}
+
+nav > ul > li > a {
+    color: var(--colorMain);
+    text-decoration: none;
+    transition: background-size .45s;
+}
+
+nav > ul > li > a:hover {
+    color: var(--colorMain);
+    opacity: .7;
+    background-size: 0.35em 0.35em;
+}
+
+
+/*
+ * typo
+ */
+body {
+    font-family: 'IBM Plex Serif', serif;
+    font-weight: normal;
+    letter-spacing: 0.0em;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-style: oblique;
+    font-weight: normal;
+}
+
+/* typographic scale https://drewish.com/tools/vertical-rhythm/ */
+h1 {
+    font-size: 2.2222em; /* 40px */
+    line-height: 1.3500; /* 54px */
+
+}
+
+h2 {
+    font-size: 1.7222em; /* 31px */
+    line-height: 1.7419em; /* 54px */
+    margin-top: auto;
+    margin-bottom: calc(var(--baseline)* 1rem);
+}
