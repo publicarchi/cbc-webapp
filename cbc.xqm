@@ -86,16 +86,31 @@ declare
   %rest:produces('application/json')
   %output:media-type('application/json')
   %output:method('json')
-function getMeetings() {
+  %rest:query-param("dpt", "{$dpt}")
+function getMeetings($dpt as xs:string?) {
   let $queryParams := map {}
   let $data := db:open("cbc")//meeting
   let $outputParams := map {}
   return array{
-    for $meeting in $data return
+    for $meeting in $data
+    (: where 
+      if ($dpt)
+      then $meeting satisfies deliberations/deliberation/localisation/departement[@type="decimal"][fn:contains(., $dpt)]]
+      else fn:true() 
+    :)
+    return
     map {
       "title" : $meeting/title => fn:normalize-space(), (: @todo deal with mix content:)
       "date" : $meeting/date => fn:normalize-space(),
-      "idno" : $meeting/parent::file/idno => fn:normalize-space()
+      "deliberations" : array{
+        for $deliberation in $meeting/deliberations/deliberation
+        return map{
+          "id" : $deliberation/@xml:id => fn:normalize-space(),
+          "title" : $deliberation/title => fn:normalize-space(),
+          "commune" : $deliberation/localisation/commune[1] => fn:normalize-space(),
+          "departement" : $deliberation/localisation/departement[@type="decimal"] => fn:normalize-space()
+        }
+      }
     }
   }
 };
@@ -105,13 +120,18 @@ function getMeetings() {
  : @return an ordered list of report in xml
  :)
 declare
-  %rest:path("/cbc/deliberations")
+  %rest:path("/cbc/deliberations/{$id}")
   %rest:produces('application/json')
   %output:media-type('application/json')
   %output:method('json')
-function getReports() {
-  let $content := db:open("cbc")
-  return map
+function getDeliberationById($id) {
+  let $data := db:open("cbc")//deliberation[@xml:id = $id]
+  return map{
+    "title" : $data/title => fn:normalize-space(),
+    "localisation" : map {
+      "commune" : $data/localisation/commune => fn:normalize-space(),
+      "depatement" : $data/localisation/departement[@type="decimal"] => fn:normalize-space()
+    },
+    "recommendation" : fn:normalize-space($data/recommendation) => fn:normalize-space()
+  }
 };
-
-
