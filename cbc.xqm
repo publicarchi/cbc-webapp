@@ -85,10 +85,11 @@ declare
   %rest:path("/cbc/meetings")
   %rest:produces('application/json')
   %output:media-type('application/json')
+  %output:method('json')
   %rest:query-param("dpt", "{$dpt}")
 function getMeetings($dpt as xs:string?) {
   let $queryParams := map {}
-  let $data := db:open("cbc")/files/file/meeting
+  let $data := db:open("cbc")/conbavil/files/file/meetings
   let $outputParams := map {}
   let $result := array{
     for $meeting in $data
@@ -111,7 +112,7 @@ function getMeetings($dpt as xs:string?) {
       }
     }
   }
-  return fn:serialize($result, map {'method': 'json'})
+  return $result
 };
 
 (:~
