@@ -87,32 +87,33 @@ declare
   %output:media-type('application/json')
   %output:method('json')
   %rest:query-param("dpt", "{$dpt}")
-function getMeetings($dpt as xs:string?) {
+  %rest:form-param("start", "{$start}", 1)
+  %rest:form-param("count", "{$count}", 10)
+function getMeetings($dpt as xs:string?, $start, $count) {
   let $queryParams := map {}
-  let $data := db:open("cbc")/conbavil/files/file/meetings
+  let $data := fn:subsequence(db:open("cbc")/conbavil/files/file/meetings, $start, $count)
   let $outputParams := map {}
-  let $result := array{
-    for $meeting in $data
+  return array{
+    for $meeting in $data/meeting
     (: where 
       if ($dpt)
       then $meeting satisfies deliberations/deliberation/localisation/departement[@type="decimal"][fn:contains(., $dpt)]]
       else fn:true() 
     :)
     return map {
-      "title" : fn:normalize-space($meeting/title), (: @todo deal with mix content:)
-      "date" : fn:normalize-space($meeting/date),
+      "title" : $meeting/title => fn:normalize-space(), (: @todo deal with mix content:)
+      "date" : $meeting/date => fn:normalize-space(),
       "deliberations" : array{
         for $deliberation in $meeting/deliberations/deliberation
         return map{
-          "id" : fn:normalize-space($deliberation/@xml:id),
-          "title" : fn:normalize-space($deliberation/title),
-          "commune" : fn:normalize-space($deliberation/localisation/commune[1]),
-          "departement" : fn:normalize-space($deliberation/localisation/departement[@type="decimal"])
+          "id" : $deliberation/@xml:id => fn:normalize-space(),
+          "title" : $deliberation/title => fn:normalize-space(),
+          "commune" : $deliberation/localisation/commune[1] => fn:normalize-space(),
+          "departement" : $deliberation/localisation/departement[@type="decimal"] => fn:normalize-space()
         }
       }
     }
   }
-  return $result
 };
 
 (:~
