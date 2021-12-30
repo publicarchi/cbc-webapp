@@ -129,9 +129,10 @@ declare
 function getDeliberationById($id) {
   let $data := db:open("cbc")//deliberation[@xml:id = $id]
   return map{
+    "id" : $data/@xml:id => fn:normalize-space(),
     "title" : $data/title => fn:normalize-space(),
-    "item" : $data/item,
-    "pages" : $data/pages,
+    "item" : $data/item => fn:normalize-space(),
+    "pages" : $data/pages => fn:normalize-space(),
     "localisation" : map {
       "commune" : $data/localisation/commune => fn:normalize-space(),
       "depatement" : $data/localisation/departement[@type="decimal"] => fn:normalize-space()
