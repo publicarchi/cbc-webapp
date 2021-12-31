@@ -150,8 +150,7 @@ function getDeliberationById($id) {
  :)
 declare
   %rest:path("/cbc/post")
-  %rest:POST
-  %rest:form-param("content", "{$content}", "(no content)")
+  %rest:POST("{$content}")
   %rest:consumes("application/json")
   %rest:produces('application/json')
   %output:media-type('application/json')
