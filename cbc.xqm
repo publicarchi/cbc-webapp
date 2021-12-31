@@ -149,7 +149,7 @@ function getDeliberationById($id) {
            -d "content='{"login":"my_login","password":"my_password"}'"
  :)
 declare
-  %rest:path("/cbc/deliberations/post")
+  %rest:path("/cbc/post")
   %rest:POST
   %rest:form-param("content", "{$content}", "(no content)")
   %rest:consumes("application/json")
