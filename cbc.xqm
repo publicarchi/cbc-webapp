@@ -140,3 +140,25 @@ function getDeliberationById($id) {
     "recommendation" : fn:normalize-space($data/recommendation) => fn:normalize-space()
   }
 };
+
+(:~
+ : This resource function lists all the reports
+ : @return an ordered list of report in xml
+ : curl -i -X POST --data "content='CONTENT'" http://localhost:8984/cbc/deliberations/post
+ : curl -i -X POST http://localhost:8984/cbc/deliberations/post -H 'Content-Type: application/json'
+           -d "content='{"login":"my_login","password":"my_password"}'"
+ :)
+declare
+  %rest:path("/cbc/deliberations/post")
+  %rest:POST
+  %rest:form-param("content", "{$content}", "(no content)")
+  %rest:consumes("application/json")
+  %rest:produces('application/json')
+  %output:media-type('application/json')
+  %output:method('json')
+function postDeliberation($content) {
+  map{
+    "content" : $content,
+    "message" : "La ressource a été ajoutée."
+  }
+};
