@@ -118,8 +118,36 @@ function getMeetings($dpt as xs:string?, $start, $count, $nb) {
 };
 
 (:~
+ : This resource function lists all the deliberations
+ : @return an json collection of deliberations
+ :)
+declare
+  %rest:path("/cbc/deliberations")
+  %rest:produces('application/json')
+  %output:media-type('application/json')
+  %output:method('json')
+  %rest:query-param("dpt", "{$dpt}")
+  %rest:query-param("start", "{$start}", 1)
+  %rest:query-param("count", "{$count}", 1000)
+function getDeliberations($dpt, $start, $count) {
+  let $deliberations := db:open("cbc")/conbavil/files/file/meetings/meeting/deliberations/deliberation
+  return array{
+    for $deliberation in fn:subsequence($deliberations, $start, $count)
+    return map{
+      "id" : $deliberation/@xml:id => fn:normalize-space(),
+      "title" : $deliberation/title => fn:normalize-space(),
+      "item" : $deliberation/item => fn:normalize-space(),
+      "pages" : $deliberation/pages => fn:normalize-space(),
+      "commune" : $deliberation/localisation/commune[1] => fn:normalize-space(),
+      "depatement" : $deliberation/localisation/departement[@type="decimal"] => fn:normalize-space(),
+      "recommendation" : fn:normalize-space($deliberation/recommendation) => fn:normalize-space()
+    }
+  }
+};
+
+(:~
  : This resource function lists all the reports
- : @return an ordered list of report in xml
+ : @return a json deliberation
  :)
 declare
   %rest:path("/cbc/deliberations/{$id}")
@@ -127,17 +155,17 @@ declare
   %output:media-type('application/json')
   %output:method('json')
 function getDeliberationById($id) {
-  let $data := db:open("cbc")//deliberation[@xml:id = $id]
+  let $deliberation := db:open("cbc")//deliberation[@xml:id = $id]
   return map{
-    "id" : $data/@xml:id => fn:normalize-space(),
-    "title" : $data/title => fn:normalize-space(),
-    "item" : $data/item => fn:normalize-space(),
-    "pages" : $data/pages => fn:normalize-space(),
+    "id" : $deliberation/@xml:id => fn:normalize-space(),
+    "title" : $deliberation/title => fn:normalize-space(),
+    "item" : $deliberation/item => fn:normalize-space(),
+    "pages" : $deliberation/pages => fn:normalize-space(),
     "localisation" : map {
-      "commune" : $data/localisation/commune => fn:normalize-space(),
-      "depatement" : $data/localisation/departement[@type="decimal"] => fn:normalize-space()
+      "commune" : $deliberation/localisation/commune => fn:normalize-space(),
+      "depatement" : $deliberation/localisation/departement[@type="decimal"] => fn:normalize-space()
     },
-    "recommendation" : fn:normalize-space($data/recommendation) => fn:normalize-space()
+    "recommendation" : fn:normalize-space($deliberation/recommendation) => fn:normalize-space()
   }
 };
 
