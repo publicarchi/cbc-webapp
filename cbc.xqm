@@ -126,12 +126,17 @@ declare
   %rest:produces('application/json')
   %output:media-type('application/json')
   %output:method('json')
-  %rest:query-param("dpt", "{$dpt}")
+  %rest:query-param("dpt", "{$dpt}", 'all')
   %rest:query-param("start", "{$start}", 1)
   %rest:query-param("count", "{$count}", 1000)
 function getDeliberations($dpt, $start, $count) {
   let $deliberations := db:open("cbc")/conbavil/files/file/meetings/meeting/deliberations/deliberation
-  return array{
+  let $meta := map {
+    'start' : $start,
+    'count' : $count,
+    'totalItems' : fn:count($deliberations)
+  }
+  let $content := array{
     for $deliberation in fn:subsequence($deliberations, $start, $count)
     return map{
       "id" : $deliberation/@xml:id => fn:normalize-space(),
@@ -139,9 +144,12 @@ function getDeliberations($dpt, $start, $count) {
       "item" : $deliberation/item => fn:normalize-space(),
       "pages" : $deliberation/pages => fn:normalize-space(),
       "commune" : $deliberation/localisation/commune[1] => fn:normalize-space(),
-      "depatement" : $deliberation/localisation/departement[@type="decimal"] => fn:normalize-space(),
+      "departement" : $deliberation/localisation/departement[@type="decimal"] => fn:normalize-space(),
       "recommendation" : fn:normalize-space($deliberation/recommendation) => fn:normalize-space()
     }
+  }
+  return array{
+    $meta, $content
   }
 };
 
@@ -163,9 +171,15 @@ function getDeliberationById($id) {
     "pages" : $deliberation/pages => fn:normalize-space(),
     "localisation" : map {
       "commune" : $deliberation/localisation/commune => fn:normalize-space(),
-      "depatement" : $deliberation/localisation/departement[@type="decimal"] => fn:normalize-space()
+      "adress" : $deliberation/localisation/adresse[@type="orig"] => fn:normalize-space(),
+      "departementDecimal" : $deliberation/localisation/departement[@type="decimal"] => fn:normalize-space(),
+      "departement" : deliberation/localisation/departement => fn:normalize-space(),
+      "departementAncien" : deliberation/localisation/departement[@type="orig"] => fn:normalize-space(),
+      "region" : deliberation/localisation/region => fn:normalize-space()
     },
-    "recommendation" : fn:normalize-space($deliberation/recommendation) => fn:normalize-space()
+    "report" : fn:normalize-space($deliberation/report) => fn:normalize-space(),
+    "recommendation" : fn:normalize-space($deliberation/recommendation) => fn:normalize-space(),
+    "advice" : fn:normalize-space($deliberation/recommendation) => fn:normalize-space()
   }
 };
 
