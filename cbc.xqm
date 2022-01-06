@@ -96,10 +96,10 @@ function getMeetings($dpt as xs:string?, $start, $count, $nb) {
   let $outputParams := map {}
   return array{
     for $meeting in fn:subsequence($data/meeting, 1, $nb)
-    (: where 
+    (: where
       if ($dpt)
       then $meeting satisfies deliberations/deliberation/localisation/departement[@type="decimal"][fn:contains(., $dpt)]]
-      else fn:true() 
+      else fn:true()
     :)
     return map {
       "title" : $meeting/title => fn:normalize-space(), (: @todo deal with mix content:)
@@ -148,8 +148,9 @@ function getDeliberations($dpt, $start, $count) {
       "recommendation" : fn:normalize-space($deliberation/recommendation) => fn:normalize-space()
     }
   }
-  return array{
-    $meta, $content
+  return map{
+    "meta": $meta,
+    "content": $content
   }
 };
 
