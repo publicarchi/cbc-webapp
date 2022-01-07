@@ -88,14 +88,13 @@ declare
   %output:method('json')
   %rest:query-param("dpt", "{$dpt}")
   %rest:query-param("start", "{$start}", 1)
-  %rest:query-param("count", "{$count}", 10)
-  %rest:query-param("nb", "{$nb}", 10)
-function getMeetings($dpt as xs:string?, $start, $count, $nb) {
+  %rest:query-param("count", "{$count}", 50)
+function getMeetings($dpt as xs:string?, $start, $count) {
   let $queryParams := map {}
   let $data := db:open("cbc")/conbavil/files/file/meetings
   let $outputParams := map {}
   return array{
-    for $meeting in fn:subsequence($data/meeting, 1, $nb)
+    for $meeting in fn:subsequence($data/meeting, 1, $count)
     (: where
       if ($dpt)
       then $meeting satisfies deliberations/deliberation/localisation/departement[@type="decimal"][fn:contains(., $dpt)]]
@@ -103,7 +102,13 @@ function getMeetings($dpt as xs:string?, $start, $count, $nb) {
     :)
     return map {
       "title" : $meeting/title => fn:normalize-space(), (: @todo deal with mix content:)
-      "date" : $meeting/date => fn:normalize-space(),
+      "date" : $meeting/date/@when => fn:normalize-space(),
+      "cote" : $meeting/parent::meetings/parent::file/idno => fn:normalize-space(),
+      "coteDev" : $meeting/parent::meetings/parent::file/title => fn:normalize-space(),
+      "pages" : getPages($meeting, map{}),
+      "nb" : $meeting/deliberations/deliberation => fn:count(),
+      "types" : getMeetingBuildingTypes($meeting, map{}),
+      "categories" : getMeetingCategories($meeting, map{}),
       "deliberations" : array{
         for $deliberation in $meeting/deliberations/deliberation
         return map{
@@ -114,6 +119,68 @@ function getMeetings($dpt as xs:string?, $start, $count, $nb) {
         }
       }
     }
+  }
+};
+
+declare function getPages($meeting as element(), $params as map(*)) as map(*) {
+  let $pages := $meeting/deliberations/deliberation/pages ! fn:analyze-string(., '\d+')//fn:match
+    => fn:distinct-values()
+    => fn:sort()
+  return
+    if (fn:count($pages) >1)
+    then map {
+      "label" : "pp.",
+      "pages" : $pages[1] || "-" || $pages[fn:last()]
+    }
+    else map {
+      "label" : "p.",
+      "pages" : $pages[1]
+    }
+};
+
+declare function getMeetingBuildingTypes($meeting as element(), $params as map(*)) as item()* {
+  let $buildingType := $meeting/deliberations/deliberation/categories/category[@type="buildingType"]
+    => fn:distinct-values()
+  return array{$buildingType}
+};
+
+declare function getMeetingCategories($meeting as element(), $params as map(*)) as item()* {
+  let $categories := $meeting/deliberations/deliberation/categories/category[@type="projectGenre"]
+    => fn:distinct-values()
+  return array{$categories}
+};
+
+(:~
+ : This resource function lists all the meetings
+ : @return an ordered list of report in xml
+ :)
+declare
+  %rest:path("/cbc/types")
+  %rest:produces('application/json')
+  %output:media-type('application/json')
+  %output:method('json')
+function getTypes() {
+  array{
+    db:open("cbc")/conbavil/files/file/meetings/meeting/deliberations/deliberation/categories/category[@type="buildingType"][.!=""]
+    => fn:distinct-values()
+    => fn:sort()
+  }
+};
+
+(:~
+ : This resource function lists all the meetings
+ : @return an ordered list of report in xml
+ :)
+declare
+  %rest:path("/cbc/categories")
+  %rest:produces('application/json')
+  %output:media-type('application/json')
+  %output:method('json')
+function getCategories() {
+  array{
+    db:open("cbc")/conbavil/files/file/meetings/meeting/deliberations/deliberation/categories/category[@type="projectGenre"][.!=""]
+      => fn:distinct-values()
+      => fn:sort()
   }
 };
 
