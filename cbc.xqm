@@ -107,8 +107,8 @@ function getMeetings($dpt as xs:string?, $start, $count) {
       "coteDev" : $meeting/parent::meetings/parent::file/title => fn:normalize-space(),
       "pages" : getPages($meeting, map{}),
       "nb" : $meeting/deliberations/deliberation => fn:count(),
-      "types" : getMeetingBuildingTypes($meeting, map{}),
-      "categories" : getMeetingCategories($meeting, map{}),
+      "types" : array{extractBuildingTypes($meeting, map{})},
+      "categories" : array{extractCategories($meeting, map{})},
       "deliberations" : array{
         for $deliberation in $meeting/deliberations/deliberation
         return map{
@@ -138,16 +138,16 @@ declare function getPages($meeting as element(), $params as map(*)) as map(*) {
     }
 };
 
-declare function getMeetingBuildingTypes($meeting as element(), $params as map(*)) as item()* {
-  let $buildingType := $meeting/deliberations/deliberation/categories/category[@type="buildingType"]
+declare function extractBuildingTypes($meeting as element(), $params as map(*)) as item()* {
+  let $buildingType := $meeting//categories/category[@type="buildingType"]
     => fn:distinct-values()
-  return array{$buildingType}
+  return $buildingType
 };
 
-declare function getMeetingCategories($meeting as element(), $params as map(*)) as item()* {
-  let $categories := $meeting/deliberations/deliberation/categories/category[@type="projectGenre"]
+declare function extractCategories($meeting as element(), $params as map(*)) as item()* {
+  let $categories := $meeting//categories/category[@type="projectGenre"]
     => fn:distinct-values()
-  return array{$categories}
+  return $categories
 };
 
 (:~
@@ -206,6 +206,8 @@ function getDeliberations($dpt, $start, $count) {
   let $content := array{
     for $deliberation in fn:subsequence($deliberations, $start, $count)
     return map{
+      "seance" : $deliberation/parent::deliberations/parent::meeting/date/@when => fn:normalize-space(),
+      "cote" : $deliberation/parent::deliberations/parent::meeting/parent::meetings/parent::file/idno => fn:normalize-space(),
       "id" : $deliberation/@xml:id => fn:normalize-space(),
       "title" : $deliberation/title => fn:normalize-space(),
       "item" : $deliberation/item => fn:normalize-space(),
@@ -233,6 +235,8 @@ declare
 function getDeliberationById($id) {
   let $deliberation := db:open("cbc")//deliberation[@xml:id = $id]
   return map{
+    "seance" : $deliberation/parent::deliberations/parent::meeting/date/@when => fn:normalize-space(),
+    "cote" : $deliberation/parent::deliberations/parent::meeting/parent::meetings/parent::file/idno => fn:normalize-space(),
     "id" : $deliberation/@xml:id => fn:normalize-space(),
     "title" : $deliberation/title => fn:normalize-space(),
     "item" : $deliberation/item => fn:normalize-space(),
@@ -241,10 +245,12 @@ function getDeliberationById($id) {
       "commune" : $deliberation/localisation/commune => fn:normalize-space(),
       "adress" : $deliberation/localisation/adresse[@type="orig"] => fn:normalize-space(),
       "departementDecimal" : $deliberation/localisation/departement[@type="decimal"] => fn:normalize-space(),
-      "departement" : deliberation/localisation/departement => fn:normalize-space(),
-      "departementAncien" : deliberation/localisation/departement[@type="orig"] => fn:normalize-space(),
-      "region" : deliberation/localisation/region => fn:normalize-space()
+      "departement" : $deliberation/localisation/departement[fn:not(@type)] => fn:normalize-space(),
+      "departementAncien" : $deliberation/localisation/departement[@type="orig"] => fn:normalize-space(),
+      "region" : $deliberation/localisation/region => fn:normalize-space()
     },
+    "types" : array{extractBuildingTypes($deliberation, map{})},
+    "categories" : array{extractCategories($deliberation, map{})},
     "report" : fn:normalize-space($deliberation/report) => fn:normalize-space(),
     "recommendation" : fn:normalize-space($deliberation/recommendation) => fn:normalize-space(),
     "advice" : fn:normalize-space($deliberation/recommendation) => fn:normalize-space()
