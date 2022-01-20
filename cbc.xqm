@@ -212,9 +212,19 @@ function getDeliberations($dpt, $start, $count) {
       "title" : $deliberation/title => fn:normalize-space(),
       "item" : $deliberation/item => fn:normalize-space(),
       "pages" : $deliberation/pages => fn:normalize-space(),
-      "commune" : $deliberation/localisation/commune[1] => fn:normalize-space(),
-      "departement" : $deliberation/localisation/departement[@type="decimal"] => fn:normalize-space(),
-      "recommendation" : fn:normalize-space($deliberation/recommendation) => fn:normalize-space()
+      "localisation" : map {
+        "commune" : $deliberation/localisation/commune => fn:normalize-space(),
+        "adress" : $deliberation/localisation/adresse[@type="orig"] => fn:normalize-space(),
+        "departementDecimal" : $deliberation/localisation/departement[@type="decimal"] => fn:normalize-space(),
+        "departement" : $deliberation/localisation/departement[fn:not(@type)] => fn:normalize-space(),
+        "departementAncien" : $deliberation/localisation/departement[@type="orig"] => fn:normalize-space(),
+        "region" : $deliberation/localisation/region => fn:normalize-space()
+      },
+      "types" : array{extractBuildingTypes($deliberation, map{})},
+      "categories" : array{extractCategories($deliberation, map{})},
+      "report" : fn:normalize-space($deliberation/report) => fn:normalize-space(),
+      "recommendation" : fn:normalize-space($deliberation/recommendation) => fn:normalize-space(),
+      "advice" : fn:normalize-space($deliberation/recommendation) => fn:normalize-space()
     }
   }
   return map{
