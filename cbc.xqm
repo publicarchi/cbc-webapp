@@ -263,8 +263,7 @@ function getDeliberationById($id) {
     "types" : array{extractBuildingTypes($deliberation, map{})},
     "categories" : array{extractCategories($deliberation, map{})},
     "report" : fn:normalize-space($deliberation/report) => fn:normalize-space(),
-    "recommendation" : fn:normalize-space($deliberation/recommendation) => fn:normalize-space(),
-    "advice" : fn:normalize-space($deliberation/recommendation) => fn:normalize-space()
+    "recommendation" : fn:normalize-space($deliberation/recommendation) => fn:normalize-space()
   }
 };
 
