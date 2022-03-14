@@ -298,7 +298,8 @@ function getAffairs($dpt, $start, $count) {
         "departementAncien" : $affair/localisation/departement[@type="orig"] => fn:normalize-space(),
         "region" : $affair/localisation/region => fn:normalize-space()
       },
-      "types" : array{extractBuildingTypes($affair, map{})}
+      "types" : array{extractBuildingTypes($affair, map{})},
+      "deliberations" : array{$affair/deliberations/*}
     }
   }
   return map{
