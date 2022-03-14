@@ -213,7 +213,8 @@ function getDeliberations($dpt, $start, $count) {
       "item" : $deliberation/item => fn:normalize-space(),
       "pages" : $deliberation/pages => fn:normalize-space(),
       "localisation" : map {
-        "commune" : $deliberation/localisation/commune => fn:normalize-space(),
+        "commune" : $deliberation/localisation/commune[.!=@type] => fn:normalize-space(),
+        "communeAncien" : $deliberation/localisation/commune[@type="orig"] => fn:normalize-space(),
         "adress" : $deliberation/localisation/adresse[@type="orig"] => fn:normalize-space(),
         "departementDecimal" : $deliberation/localisation/departement[@type="decimal"] => fn:normalize-space(),
         "departement" : $deliberation/localisation/departement[fn:not(@type)] => fn:normalize-space(),
