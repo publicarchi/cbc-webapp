@@ -269,16 +269,72 @@ function getDeliberationById($id) {
 };
 
 (:~
+ : This resource function lists all the deliberations
+ : @return an json collection of deliberations
+ :)
+declare
+  %rest:path("/cbc/affairs")
+  %rest:produces('application/json')
+  %output:media-type('application/json')
+  %output:method('json')
+  %rest:query-param("dpt", "{$dpt}", 'all')
+  %rest:query-param("start", "{$start}", 1)
+  %rest:query-param("count", "{$count}", 1000)
+function getAffairs($dpt, $start, $count) {
+  let $affairs := db:open("cbc")/conbavil/affairs
+  let $meta := map {
+    'start' : $start,
+    'count' : $count,
+    'totalItems' : fn:count($affairs)
+  }
+  let $content := array{
+    for $affair in fn:subsequence($affairs, $start, $count)
+    return map{
+      "head" : $affair/head,
+      "localisation" : map {
+        "commune" : $affair/localisation/commune => fn:normalize-space(),
+        "departementDecimal" : $affair/localisation/departement[@type="decimal"] => fn:normalize-space(),
+        "departement" : $affair/localisation/departement[fn:not(@type)] => fn:normalize-space(),
+        "departementAncien" : $affair/localisation/departement[@type="orig"] => fn:normalize-space(),
+        "region" : $affair/localisation/region => fn:normalize-space()
+      },
+      "types" : array{extractBuildingTypes($affair, map{})}
+    }
+  }
+  return map{
+    "meta": $meta,
+    "content": $content
+  }
+};
+
+(:~
  : This resource function lists all the reports
- : @return an ordered list of report in xml
- : curl -i -X POST --data "content='CONTENT'" http://localhost:8984/cbc/deliberations/post
- : curl -i -X POST http://localhost:8984/cbc/deliberations/post -H 'Content-Type: application/json'
-           -d "content='{"login":"my_login","password":"my_password"}'"
+ : @return a json deliberation
+ :)
+declare
+  %rest:path("/cbc/affairs/{$id}")
+  %rest:produces('application/json')
+  %output:media-type('application/json')
+  %output:method('json')
+function getAffairsById($id) {
+  let $affairs := db:open("cbc")/conbavil/affairs/affair[@xml:id = $id]
+  let $meta := map {
+      'totalItems' : fn:count($affairs)
+    }
+  let $content := map {}
+  return map{
+    "meta" : $meta,
+    "content" : $content
+  }
+};
+
+(:~
+ : This resource function post a new affair
+ : @todo change path
  :)
 declare
   %rest:path("/cbc/post")
   %rest:POST("{$content}")
-  %rest:consumes("application/json")
   %rest:produces('application/json')
   %output:media-type('application/json')
   %output:method('json')
@@ -287,4 +343,36 @@ function postDeliberation($content) {
     "content" : $content,
     "message" : "La ressource a été ajoutée."
   }
+};
+
+(:~
+ : This resource function post a new affair
+ : @todo add id
+ :)
+declare
+  %rest:path("/cbc/postaffairs/post")
+  %rest:POST("{$content}")
+  %rest:produces('application/json')
+  %output:media-type('application/json')
+  %output:method('json')
+  %updating
+function postAffair($content) {
+  (
+    let $affairs := db:open('cbc')/conbavil/affairs
+    let $affair := <affair xml:id="{fn:generate-id($affairs)}">{json:parse($content)/*/node()}</affair>
+    return insert node $affair into $affairs,
+    update:output(
+    (
+            <rest:response>
+              <http:response status="200" message="">
+                <http:header name="Content-Language" value="fr"/>
+                <http:header name="Content-Type" value="text/plain; charset=utf-8"/>
+              </http:response>
+            </rest:response>,
+            map {
+              "message" : "La ressource a bien été ajoutée."
+            }
+          )
+       )
+    )
 };
