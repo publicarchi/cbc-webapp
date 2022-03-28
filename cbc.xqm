@@ -290,6 +290,7 @@ function getAffairs($dpt, $start, $count) {
   let $content := array{
     for $affair in fn:subsequence($affairs, $start, $count)
     return map{
+      "id": $affair/@xml:id => fn:normalize-space(),
       "head" : $affair/head,
       "localisation" : map {
         "commune" : $affair/localisation/commune => fn:normalize-space(),
