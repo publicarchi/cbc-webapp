@@ -281,7 +281,7 @@ declare
   %rest:query-param("start", "{$start}", 1)
   %rest:query-param("count", "{$count}", 1000)
 function getAffairs($dpt, $start, $count) {
-  let $affairs := db:open("cbc")/conbavil/affairs
+  let $affairs := db:open("cbc")/conbavil/affairs/affair
   let $meta := map {
     'start' : $start,
     'count' : $count,
@@ -376,4 +376,64 @@ function postAffair($content) {
           )
        )
     )
+};
+
+(:~
+ : This resource function creates ft index of deliberations and affairs
+ : @todo add missing elements in deliberation
+ :)
+declare
+  %rest:path("/cbc/getIndexFt")
+  %rest:produces('application/json')
+  %output:media-type('application/json')
+  %output:method('json')
+  %updating
+function getIndexFt() {
+  (
+    let $affairs :=
+      <affairs>{
+        for $affair in db:open('cbc')/conbavil/affairs
+        return <affair>{fn:normalize-space($affair)}</affair>
+      }</affairs>
+    let $deliberations :=
+      <deliberations>{
+        for $deliberation in db:open('cbc')/conbavil//deliberation
+        return <deliberation>{fn:normalize-space($deliberation)}</deliberation>
+      }</deliberations>
+    return db:create(
+      'cbcFt',
+      ($affairs, $deliberations),
+      ('affairs', 'deliberations'),
+      map {
+        'ftindex': fn:true(),
+        'stemming': fn:true(),
+        'casesens': fn:true(),
+        'diacritics': fn:true(),
+        'language': 'fr',
+        'updindex': fn:true(),
+        'autooptimize': fn:true(),
+        'maxlen': 96,
+        'maxcats': 100,
+        'splitsize': 0,
+        'chop': fn:false(),
+        'textindex': fn:true(),
+        'attrindex': fn:true(),
+        'tokenindex': fn:true(),
+        'xinclude': fn:true()
+        }
+      ),
+    update:output(
+      (
+        <rest:response>
+          <http:response status="200" message="">
+            <http:header name="Content-Language" value="fr"/>
+            <http:header name="Content-Type" value="text/plain; charset=utf-8"/>
+          </http:response>
+        </rest:response>,
+        map {
+          "message" : "L’index plein-texte des affaires a bien été créé."
+        }
+      )
+    )
+  )
 };
