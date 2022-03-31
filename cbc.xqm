@@ -273,7 +273,7 @@ function getDeliberationById($id) {
  : @return an json collection of deliberations
  :)
 declare
-  %rest:path("/cbc/affairs")
+  %rest:path("/cbc/affaires")
   %rest:produces('application/json')
   %output:media-type('application/json')
   %output:method('json')
@@ -289,9 +289,10 @@ function getAffairs($dpt, $start, $count) {
   }
   let $content := array{
     for $affair in fn:subsequence($affairs, $start, $count)
+
     return map{
       "id": $affair/@xml:id => fn:normalize-space(),
-      "head" : $affair/head,
+      "head" : $affair/head => fn:normalize-space(),
       "localisation" : map {
         "commune" : $affair/localisation/commune => fn:normalize-space(),
         "departementDecimal" : $affair/localisation/departement[@type="decimal"] => fn:normalize-space(),
@@ -300,7 +301,7 @@ function getAffairs($dpt, $start, $count) {
         "region" : $affair/localisation/region => fn:normalize-space()
       },
       "types" : array{extractBuildingTypes($affair, map{})},
-      "deliberations" : array{$affair/deliberations/*}
+      "deliberations" : array{$affair/deliberations/*/text()}
     }
   }
   return map{
@@ -314,7 +315,7 @@ function getAffairs($dpt, $start, $count) {
  : @return a json deliberation
  :)
 declare
-  %rest:path("/cbc/affairs/{$id}")
+  %rest:path("/cbc/affaires/{$id}")
   %rest:produces('application/json')
   %output:media-type('application/json')
   %output:method('json')
@@ -331,19 +332,44 @@ function getAffairsById($id) {
 };
 
 (:~
- : This resource function post a new affair
+ : This resource function return all affaires linked to deliberations passed as params
  : @todo change path
  :)
 declare
-  %rest:path("/cbc/post")
+  %rest:path("/cbc/affaires/fromDeliberations")
   %rest:POST("{$content}")
   %rest:produces('application/json')
   %output:media-type('application/json')
   %output:method('json')
 function postDeliberation($content) {
-  map{
-    "content" : $content,
-    "message" : "La ressource a été ajoutée."
+  let $deliberationIds := json:parse($content, map {'format': 'xquery'})("body")
+
+  let $result :=
+    for $affaire in db:open('cbc')/conbavil/affairs/affair
+    where
+      array{
+        for $i in $affaire/deliberations/node()/text()
+        return $i => fn:normalize-space()
+      } = $deliberationIds
+    return $affaire
+
+  return array{
+    for $affaire in $result
+      return map{
+        'head': $affaire!head => fn:normalize-space(),
+        'id': $affaire/@xml:id => fn:normalize-space(),
+        'localisation': map{
+          'commune': $affaire!localisation!commune => fn:normalize-space(),
+          'departementDecimal': $affaire/localisation/departementDecimal => fn:normalize-space(),
+          'departement': $affaire/localisation/departement => fn:normalize-space(),
+          'departementAncien': $affaire/localisation/departementAncien => fn:normalize-space(),
+          'region': $affaire/localisation/region => fn:normalize-space()
+        },
+        'deliberations': array{
+          for $id in $affaire/deliberations/node()/text()
+            return $id => fn:normalize-space()
+        }
+      }
   }
 };
 
@@ -352,7 +378,7 @@ function postDeliberation($content) {
  : @todo add id
  :)
 declare
-  %rest:path("/cbc/postaffairs/post")
+  %rest:path("/cbc/affaires/create")
   %rest:POST("{$content}")
   %rest:produces('application/json')
   %output:media-type('application/json')
