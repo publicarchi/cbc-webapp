@@ -236,6 +236,32 @@ function getDeliberations($dpt, $start, $count) {
 };
 
 (:~
+ : This resource returns a map of deliberations
+ : (with id (key) and title (value) only)
+ : based on give set of ids passed in the body of the post request
+ :)
+declare
+%rest:path("/cbc/deliberations/lite")
+%rest:POST("{$content}")
+%rest:produces('application/json')
+%output:media-type('application/json')
+%output:method('json')
+function getDeliberationsLite($content){
+  let $deliberationIds := json:parse($content, map{ 'format': 'xquery'})("body")
+  return $deliberationIds
+
+  (: return map:merge(
+    for $i in $deliberationIds
+    let $d := db:open("cbc")//deliberation[@xml:id = $i]
+    let $title := fn:exists($d/title) ?? $d/title => fn:normalize-space() !! $d/altTitle => fn:normalize-space()
+    return map{ $i: $title }
+  ) :)
+
+  (: return for $i in $deliberationIds
+    return fn:concat('trolol-', $i => fn:normalize-space()) :)
+};
+
+(:~
  : This resource function lists all the reports
  : @return a json deliberation
  :)
@@ -246,6 +272,7 @@ declare
   %output:method('json')
 function getDeliberationById($id) {
   let $deliberation := db:open("cbc")//deliberation[@xml:id = $id]
+
   return map{
     "seance" : $deliberation/parent::deliberations/parent::meeting/date/@when => fn:normalize-space(),
     "cote" : $deliberation/parent::deliberations/parent::meeting/parent::meetings/parent::file/idno => fn:normalize-space(),
@@ -320,14 +347,36 @@ declare
   %output:media-type('application/json')
   %output:method('json')
 function getAffairsById($id) {
-  let $affairs := db:open("cbc")/conbavil/affairs/affair[@xml:id = $id]
-  let $meta := map {
-      'totalItems' : fn:count($affairs)
-    }
-  let $content := map {}
+  let $affaire := db:open("cbc")/conbavil/affairs/affair[@xml:id = $id]
   return map{
-    "meta" : $meta,
-    "content" : $content
+    'head': $affaire/head => fn:normalize-space(),
+    'localisation': map{
+      'commune': $affaire/localisation/commune => fn:normalize-space(),
+      'departementDecimal': $affaire/localisation/departementDecimal => fn:normalize-space(),
+      'departement': $affaire/localisation/departement => fn:normalize-space(),
+      'departementAncien': $affaire/localisation/departementAncien => fn:normalize-space(),
+      'region': $affaire/localisation/region => fn:normalize-space()
+    },
+    'types': $affaire/types => fn:normalize-space(),
+	  'deliberations': array{
+      for $i in $affaire/deliberations/node()
+      let $d := db:open("cbc")//deliberation[@xml:id = $i]
+      return map{
+        "id": $i => fn:normalize-space(),
+        "title": $d/title => fn:normalize-space(),
+        "altTitle": $d/altTitle => fn:normalize-space(),
+        "localisation" : map {
+          "commune" : $d/localisation/commune => fn:normalize-space(),
+          "adress" : $d/localisation/adresse[@type="orig"] => fn:normalize-space(),
+          "departementDecimal" : $d/localisation/departement[@type="decimal"] => fn:normalize-space(),
+          "departement" : $d/localisation/departement[fn:not(@type)] => fn:normalize-space(),
+          "departementAncien" : $d/localisation/departement[@type="orig"] => fn:normalize-space(),
+          "region" : $d/localisation/region => fn:normalize-space()
+        },
+        "types" : array{extractBuildingTypes($d, map{})},
+        "categories" : array{extractCategories($d, map{})}
+      }
+    }
   }
 };
 
@@ -341,7 +390,7 @@ declare
   %rest:produces('application/json')
   %output:media-type('application/json')
   %output:method('json')
-function postDeliberation($content) {
+function affairesFromDeliberations($content) {
   let $deliberationIds := json:parse($content, map {'format': 'xquery'})("body")
 
   let $result :=
@@ -366,8 +415,8 @@ function postDeliberation($content) {
           'region': $affaire/localisation/region => fn:normalize-space()
         },
         'deliberations': array{
-          for $id in $affaire/deliberations/node()/text()
-            return $id => fn:normalize-space()
+          for $id in $affaire/deliberations/node()
+          return $id => fn:normalize-space()
         }
       }
   }
