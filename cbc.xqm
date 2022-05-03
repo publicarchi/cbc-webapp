@@ -455,6 +455,45 @@ function postAffair($content) {
 };
 
 (:~
+ : This resource function update an affair
+ : TODO: fix duplicated id
+ :)
+declare
+  %rest:path("/cbc/affair/update")
+  %rest:POST("{$content}")
+  %rest:produces('application/json')
+  %output:media-type('application/json')
+  %output:method('json')
+  %updating
+function updateAffair($content) {
+  let $id := json:parse($content, map {'format': 'xquery'})('id')
+
+  (: BUG -> fn:not(...) n'est pas pris en compte :)
+  (: https://stackoverflow.com/questions/4121539/xpath-to-get-all-child-elements-except-one-with-specific-name :)
+  let $newAffair :=
+    <affair xml:id="{$id}">
+      {json:parse($content, map {'merge': fn:true()})/*[fn:not(self::id)]/node()}
+    </affair>
+
+  let $oldAffair := db:open('cbc')/conbavil/affairs/affair[@xml:id=$id]
+
+  return replace node $oldAffair with $newAffair,
+  update:output(
+    (
+      <rest:response>
+              <http:response status="200" message="">
+                <http:header name="Content-Language" value="fr"/>
+                <http:header name="Content-Type" value="text/plain; charset=utf-8"/>
+              </http:response>
+            </rest:response>,
+            map {
+              "message" : "La ressource a bien été modifiée."
+            }
+    )
+  )
+};
+
+(:~
  : This resource function creates ft index of deliberations and affairs
  : @todo add missing elements in deliberation
  :)
