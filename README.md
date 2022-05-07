@@ -25,16 +25,61 @@ https://stackoverflow.com/questions/42932689/basex-rest-api-set-custom-http-resp
 </web-app>
 ```
 
-Créer l’élément affairs
+### Créer l’élément affairs
 
 ```xquery
   declare default element namespace "http://conbavil.fr/namespace" ;
   insert node <affairs/> db:open("cbc")/conbavil
 ```
 
-Supprimer les tests d’affaires
+### Supprimer les tests d’affaires
 
 ```xquery
   declare default element namespace "http://conbavil.fr/namespace" ;
   delete node db:open("cbc")/conbavil/affairs/*
+```
+
+### Ajouter des titres alternatifs aux déliérations
+
+```xquery
+declare default element namespace "http://conbavil.fr/namespace" ;
+
+
+let $deliberations := db:open('cbc')/conbavil/files/file/meetings/meeting/deliberations/deliberation
+
+for $d in $deliberations
+
+  let $genre := fn:string-join(
+    (
+    for $i in $d/categories/category[@type = 'projectGenre']
+    return $i => normalize-space()
+    ), '/'
+  )
+
+  let $building := fn:string-join(
+  	(
+    for $i in $d/categories/category[@type = 'buildingType']
+    return $i => normalize-space()
+    ), '/'
+  )
+
+  let $commune := fn:string-join(
+  	(
+    for $i in $d/localisation/commune
+    return $i => normalize-space()
+    ), '/'
+  )
+
+  let $commune := if ($commune = '[?]' or $commune = '') then
+  	$d/localisation/region => fn:normalize-space() else $commune
+
+  let $altTitle := <altTitle>{
+  	fn:string-join(
+    for $i in ($genre, $building, $commune)
+    where $i => fn:normalize-space() != ''
+    return $i,
+    ' · '
+  )}</altTitle>
+
+  return insert node $altTitle as first into $d
 ```
