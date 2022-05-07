@@ -86,20 +86,17 @@ declare
   %rest:produces('application/json')
   %output:media-type('application/json')
   %output:method('json')
-  %rest:query-param("dpt", "{$dpt}")
   %rest:query-param("start", "{$start}", 1)
-  %rest:query-param("count", "{$count}", 50)
-function getMeetings($dpt as xs:string?, $start, $count) {
-  let $queryParams := map {}
+  %rest:query-param("count", "{$count}", 20)
+function getMeetings($start, $count) {
   let $data := db:open("cbc")/conbavil/files/file/meetings
-  let $outputParams := map {}
-  return array{
-    for $meeting in fn:subsequence($data/meeting, 1, $count)
-    (: where
-      if ($dpt)
-      then $meeting satisfies deliberations/deliberation/localisation/departement[@type="decimal"][fn:contains(., $dpt)]]
-      else fn:true()
-    :)
+  let $meta := map {
+    'start' : $start,
+    'count' : $count,
+    'totalItems' : fn:count($data)
+  }
+  let $content :=  array{
+    for $meeting in fn:subsequence($data/meeting, $start, $count)
     return map {
       "title" : $meeting/title => fn:normalize-space(), (: @todo deal with mix content:)
       "date" : $meeting/date/@when => fn:normalize-space(),
@@ -114,11 +111,17 @@ function getMeetings($dpt as xs:string?, $start, $count) {
         return map{
           "id" : $deliberation/@xml:id => fn:normalize-space(),
           "title" : $deliberation/title => fn:normalize-space(),
+          "altTitle" : $deliberation/altTitle => fn:normalize-space(),
           "commune" : $deliberation/localisation/commune[1] => fn:normalize-space(),
           "departement" : $deliberation/localisation/departement[@type="decimal"] => fn:normalize-space()
         }
       }
     }
+  }
+
+  return map{
+    "meta": $meta,
+    "content": $content
   }
 };
 
@@ -193,10 +196,9 @@ declare
   %rest:produces('application/json')
   %output:media-type('application/json')
   %output:method('json')
-  %rest:query-param("dpt", "{$dpt}", 'all')
   %rest:query-param("start", "{$start}", 1)
-  %rest:query-param("count", "{$count}", 1000)
-function getDeliberations($dpt, $start, $count) {
+  %rest:query-param("count", "{$count}", 20)
+function getDeliberations($start, $count) {
   let $deliberations := db:open("cbc")/conbavil/files/file/meetings/meeting/deliberations/deliberation
   let $meta := map {
     'start' : $start,
