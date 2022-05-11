@@ -147,6 +147,21 @@ declare function extractCategories($element as element()) as item()* {
   return array { $categories }
 };
 
+declare function httpResponse($code as xs:integer, $msg as xs:string) as item()+ {
+  let $res := (
+     <rest:response>
+          <http:response status="{$code}" message="">
+            <http:header name="Content-Language" value="fr"/>
+            <http:header name="Content-Type" value="text/plain; charset=utf-8"/>
+          </http:response>
+        </rest:response>,
+        map {
+          "message" : $msg
+        }
+  )
+  return $res
+};
+
 declare function deliberationToMap($deliberation as element()) as map(*) {
  let $result := map{
       "meetingId": $deliberation/meetingId => fn:normalize-space(),
@@ -417,47 +432,17 @@ function postAffair($content) {
         replace node db:open('cbc')/conbavil/affairs/affair[@xml:id = $affairId] with $affair,
         for $i in (1 to array:size($data('deliberations')))
         return replace value of node db:open('cbc')//deliberations[@xml:id = $data('deliberations')($i)('id')] with $affairId,
-        update:output((
-            <rest:response>
-              <http:response status="200" message="">
-                <http:header name="Content-Language" value="fr"/>
-                <http:header name="Content-Type" value="text/plain; charset=utf-8"/>
-              </http:response>
-            </rest:response>,
-          map {
-            "message" : "La ressource bien été modifiée."
-          })
-        )
+        update:output(httpResponse(200, 'La ressource bien été modifiée.'))
       )
   case "creation" 
     return (
       insert node $affair into $affairs,
       for $i in (1 to array:size($data('deliberations')))
       return replace value of node db:open('cbc')//deliberation[@xml:id = $data('deliberations')($i)('id')]/affairId with $affairId,
-      update:output((
-          <rest:response>
-            <http:response status="200" message="">
-              <http:header name="Content-Language" value="fr"/>
-              <http:header name="Content-Type" value="text/plain; charset=utf-8"/>
-            </http:response>
-          </rest:response>,
-          map {
-            "message" : "La ressource a bien été créée."
-          })
-      )
+      update:output(httpResponse(200, 'La ressource bien été créée.'))
     )
   default 
-    return update:output((
-          <rest:response>
-            <http:response status="500" message="">
-              <http:header name="Content-Language" value="fr"/>
-              <http:header name="Content-Type" value="text/plain; charset=utf-8"/>
-            </http:response>
-          </rest:response>,
-        map {
-          "message" : "Un problème est survenu, la ressource n'a pas pu être créée/modifiée."
-        })
-      )
+    return update:output(httpResponse(500, "Un problème est survenu, la ressource n'a pas pu être créée/modifiée."))
 };
 
 (:~
@@ -504,18 +489,6 @@ function getIndexFt() {
         'xinclude': fn:true()
         }
       ),
-    update:output(
-      (
-        <rest:response>
-          <http:response status="200" message="">
-            <http:header name="Content-Language" value="fr"/>
-            <http:header name="Content-Type" value="text/plain; charset=utf-8"/>
-          </http:response>
-        </rest:response>,
-        map {
-          "message" : "L’index plein-texte des affaires a bien été créé."
-        }
-      )
-    )
+    update:output(httpResponse(200, "L’index plein-texte des affaires a bien été créé."))
   )
 };
