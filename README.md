@@ -29,7 +29,7 @@ https://stackoverflow.com/questions/42932689/basex-rest-api-set-custom-http-resp
 
 ```xquery
   declare default element namespace "http://conbavil.fr/namespace" ;
-  insert node <affairs/> db:open("cbc")/conbavil
+  insert node <affairs/> into db:open("cbc")/conbavil
 ```
 
 ### Supprimer les tests d’affaires
@@ -39,11 +39,10 @@ https://stackoverflow.com/questions/42932689/basex-rest-api-set-custom-http-resp
   delete node db:open("cbc")/conbavil/affairs/*
 ```
 
-### Ajouter des titres alternatifs aux déliérations
+### Ajouter des titres alternatifs aux délibérations
 
 ```xquery
 declare default element namespace "http://conbavil.fr/namespace" ;
-
 
 let $deliberations := db:open('cbc')/conbavil/files/file/meetings/meeting/deliberations/deliberation
 
@@ -82,4 +81,30 @@ for $d in $deliberations
   )}</altTitle>
 
   return insert node $altTitle as first into $d
+```
+
+### Ajouter id aux séances 
+
+```xquery
+declare default element namespace "http://conbavil.fr/namespace";
+
+for $m in db:open('cbc')/conbavil/files/file/meetings/meeting
+let $c := (
+	<meeting xml:id="{fn:generate-id($m)}">
+    	{$m/*}
+    </meeting>
+)
+return replace node $m with $c
+```
+
+### Ajouter les id des séances aux délibérations
+```xquery
+declare default element namespace "http://conbavil.fr/namespace";
+
+for $d in db:open('cbc')/conbavil/files/file/meetings/meeting/deliberations/deliberation
+return insert node (
+	<meetingId>
+		{$d/parent::deliberations/parent::meeting/@xml:id => fn:normalize-space()}
+	</meetingId>
+) into $d
 ```
