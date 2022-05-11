@@ -108,3 +108,11 @@ return insert node (
 	</meetingId>
 ) into $d
 ```
+
+### Ajouter affairId aux délibérations
+```
+declare default element namespace "http://conbavil.fr/namespace";
+
+for $d in db:open('cbc')/conbavil//deliberation
+return insert node <affairId></affairId> into $d
+```

@@ -376,12 +376,12 @@ function postAffair($content) {
 
   let $affairs := db:open('cbc')/conbavil/affairs
 
-  let $affairID := 
+  let $affairId := 
     if ($type = 'modification') then $data('id')
     else fn:generate-id($affairs)
 
   let $affair := (
-    <affair xml:id="{$affairID}">
+    <affair xml:id="{$affairId}">
       <title>{$data('title')}</title>
       <localisation>
         <commune>{$data('localisation')('commune')}</commune>
@@ -413,7 +413,27 @@ function postAffair($content) {
   
   return switch ($type) 
     case "modification" 
-      return (replace node db:open('cbc')/conbavil/affairs/affair[@xml:id = $affairID] with $affair,
+      return (
+        replace node db:open('cbc')/conbavil/affairs/affair[@xml:id = $affairId] with $affair,
+        for $i in (1 to array:size($data('deliberations')))
+        return replace value of node db:open('cbc')//deliberations[@xml:id = $data('deliberations')($i)('id')] with $affairId,
+        update:output((
+            <rest:response>
+              <http:response status="200" message="">
+                <http:header name="Content-Language" value="fr"/>
+                <http:header name="Content-Type" value="text/plain; charset=utf-8"/>
+              </http:response>
+            </rest:response>,
+          map {
+            "message" : "La ressource bien été modifiée."
+          })
+        )
+      )
+  case "creation" 
+    return (
+      insert node $affair into $affairs,
+      for $i in (1 to array:size($data('deliberations')))
+      return replace value of node db:open('cbc')//deliberation[@xml:id = $data('deliberations')($i)('id')]/affairId with $affairId,
       update:output((
           <rest:response>
             <http:response status="200" message="">
@@ -421,23 +441,11 @@ function postAffair($content) {
               <http:header name="Content-Type" value="text/plain; charset=utf-8"/>
             </http:response>
           </rest:response>,
-        map {
-          "message" : "La ressource bien été modifiée."
-        })
-      ))
-  case "creation" 
-    return (insert node $affair into $affairs,
-    update:output((
-        <rest:response>
-          <http:response status="200" message="">
-            <http:header name="Content-Language" value="fr"/>
-            <http:header name="Content-Type" value="text/plain; charset=utf-8"/>
-          </http:response>
-        </rest:response>,
-        map {
-          "message" : "La ressource a bien été créée."
-        })
-    ))
+          map {
+            "message" : "La ressource a bien été créée."
+          })
+      )
+    )
   default 
     return update:output((
           <rest:response>
