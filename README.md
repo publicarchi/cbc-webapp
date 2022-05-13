@@ -2,7 +2,7 @@
 
 Webapp XQuery sur le conseil des bâtiments civils.
 
--   BaseX >9
+- BaseX >9
 
 ```bash
 ln -s /Users/path-to/cbc-webapp /path-to/basex/webapp/cbc
@@ -83,7 +83,7 @@ for $d in $deliberations
   return insert node $altTitle as first into $d
 ```
 
-### Ajouter id aux séances 
+### Ajouter id aux séances
 
 ```xquery
 declare default element namespace "http://conbavil.fr/namespace";
@@ -98,6 +98,7 @@ return replace node $m with $c
 ```
 
 ### Ajouter les id des séances aux délibérations
+
 ```xquery
 declare default element namespace "http://conbavil.fr/namespace";
 
@@ -110,9 +111,61 @@ return insert node (
 ```
 
 ### Ajouter affairId aux délibérations
-```
+
+```xquery
 declare default element namespace "http://conbavil.fr/namespace";
 
 for $d in db:open('cbc')/conbavil//deliberation
 return insert node <affairId></affairId> into $d
+```
+
+### Créer un index pour les déliberations, affaires et séances
+
+```xquery
+let $affairs :=
+    <affairs>{
+      for $affair in db:open('cbc')/conbavil//affair
+      return <affair xml:id="{$affair/@xml:id => fn:normalize-space()}">{fn:normalize-space($affair)}</affair>
+    }</affairs>
+  let $deliberations :=
+    <deliberations>{
+      for $deliberation in db:open('cbc')/conbavil//deliberation
+      return
+      <deliberation
+        xml:id="{$deliberation/@xml:id => fn:normalize-space()}"
+        meetingId="{$deliberation/meetingId => fn:normalize-space()}"
+        affairId="{$deliberation/affairId => fn:normalize-space()}"
+      >{fn:normalize-space($deliberation)}
+      </deliberation>
+    }</deliberations>
+  let $meetings :=
+    <meetings>
+    {
+      for $meeting in db:open('cbc')/conbavil//meeting
+      return <meeting xml:id="{$meeting/@xml:id => fn:normalize-space()}">{fn:normalize-space($meeting)}</meeting>
+    }
+    </meetings>
+  return db:create(
+    'cbcFt',
+    ($affairs, $deliberations, $meetings),
+    ('affairs', 'deliberations', 'meetings'),
+    map {
+      'ftindex': fn:true(),
+      'stemming': fn:true(),
+      'casesens': fn:true(),
+      'diacritics': fn:true(),
+      'language': 'fr',
+      'updindex': fn:true(),
+      'autooptimize': fn:true(),
+      'maxlen': 96,
+      'maxcats': 100,
+      'splitsize': 0,
+      'chop': fn:false(),
+      'textindex': fn:true(),
+      'attrindex': fn:true(),
+      'tokenindex': fn:true(),
+      'xinclude': fn:true()
+      }
+    ),
+  update:output(httpResponse(200, "L’index plein-texte des affaires a bien été créé."))
 ```

@@ -65,10 +65,10 @@ declare
   %output:media-type('application/json')
   %output:method('json')
 function getFiles() {
-  let $queryParams := map {}
+  (:~ let $queryParams := map {} ~:)
   let $data := db:open("cbc")//file
-  let $outputParams := map {}
-  return array{
+  (:~ let $outputParams := map {} ~:)
+  return array {
     for $file in $data return
     map {
       "title" : fn:normalize-space($file/title) , (: @todo deal with mix content:)
@@ -160,6 +160,12 @@ declare function httpResponse($code as xs:integer, $msg as xs:string) as item()+
         }
   )
   return $res
+};
+
+declare function getDeliberation($id as xs:string, $meetingId as xs:string) as element() {
+   db:open('cbc')/conbavil/files/file/meetings
+        /meeting[@xml:id = $meetingId]
+        //deliberation[@xml:id = $id]
 };
 
 declare function deliberationToMap($deliberation as element()) as map(*) {
@@ -286,6 +292,44 @@ function getDeliberations($start, $count) {
   return map{
     "meta": $meta,
     "content": $content
+  }
+};
+
+(:~
+ : This resource function searches for deliberations 
+ : based on parms provided on post request.
+ : @return an json collection of deliberations
+ :)
+declare
+  %rest:path("/cbc/deliberations/search")
+  %rest:produces('application/json')
+  %output:media-type('application/json')
+  %output:method('json')
+  %rest:POST("{$content}")
+function searchDeliberations($content) {
+  let $body := json:parse($content, map{'format': 'xquery'})
+  let $terms := $body('terms')
+
+  let $deliberations := db:open('cbcFt')//deliberation[
+    text() contains text {for $t in $terms return $t} all words
+  ]
+    
+  let $meta := map {
+    'start' : xs:integer($body('meta')('start')),
+    'count' : xs:integer($body('meta')('count')),
+    'totalItems' : fn:count($deliberations)
+  }
+
+  let $results := array {
+    for $d in fn:subsequence($deliberations, $meta('start'), $meta('count'))
+    return deliberationToMap(
+      getDeliberation($d/@xml:id => fn:normalize-space(), $d/@meetingId => fn:normalize-space())
+    )
+  }
+
+  return map{
+    "meta": $meta,
+    "content": $results
   }
 };
 
@@ -443,52 +487,4 @@ function postAffair($content) {
     )
   default 
     return update:output(httpResponse(500, "Un problème est survenu, la ressource n'a pas pu être créée/modifiée."))
-};
-
-(:~
- : This resource function creates ft index of deliberations and affairs
- : @todo add missing elements in deliberation
- :)
-declare
-  %rest:path("/cbc/getIndexFt")
-  %rest:produces('application/json')
-  %output:media-type('application/json')
-  %output:method('json')
-  %updating
-function getIndexFt() {
-  (
-    let $affairs :=
-      <affairs>{
-        for $affair in db:open('cbc')/conbavil/affairs
-        return <affair>{fn:normalize-space($affair)}</affair>
-      }</affairs>
-    let $deliberations :=
-      <deliberations>{
-        for $deliberation in db:open('cbc')/conbavil//deliberation
-        return <deliberation>{fn:normalize-space($deliberation)}</deliberation>
-      }</deliberations>
-    return db:create(
-      'cbcFt',
-      ($affairs, $deliberations),
-      ('affairs', 'deliberations'),
-      map {
-        'ftindex': fn:true(),
-        'stemming': fn:true(),
-        'casesens': fn:true(),
-        'diacritics': fn:true(),
-        'language': 'fr',
-        'updindex': fn:true(),
-        'autooptimize': fn:true(),
-        'maxlen': 96,
-        'maxcats': 100,
-        'splitsize': 0,
-        'chop': fn:false(),
-        'textindex': fn:true(),
-        'attrindex': fn:true(),
-        'tokenindex': fn:true(),
-        'xinclude': fn:true()
-        }
-      ),
-    update:output(httpResponse(200, "L’index plein-texte des affaires a bien été créé."))
-  )
 };
