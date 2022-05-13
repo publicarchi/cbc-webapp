@@ -168,6 +168,10 @@ declare function getDeliberation($id as xs:string, $meetingId as xs:string) as e
         //deliberation[@xml:id = $id]
 };
 
+declare function getAffair($id as xs:string) as element() {
+   db:open('cbc')/conbavil//affair[@xml:id = $id]
+};
+
 declare function deliberationToMap($deliberation as element()) as map(*) {
  let $result := map{
       "meetingId": $deliberation/meetingId => fn:normalize-space(),
@@ -301,31 +305,42 @@ function getDeliberations($start, $count) {
  : @return an json collection of deliberations
  :)
 declare
-  %rest:path("/cbc/deliberations/search")
+  %rest:path("/cbc/search")
   %rest:produces('application/json')
   %output:media-type('application/json')
   %output:method('json')
   %rest:POST("{$content}")
-function searchDeliberations($content) {
+function search($content) {
   let $body := json:parse($content, map{'format': 'xquery'})
   let $terms := $body('terms')
+  let $element := $body('element')
 
-  let $deliberations := db:open('cbcFt')//deliberation[
+  let $elements := db:open('cbcFt')//*[fn:name() = $element][
     text() contains text {for $t in $terms return $t} all words
   ]
     
   let $meta := map {
     'start' : xs:integer($body('meta')('start')),
     'count' : xs:integer($body('meta')('count')),
-    'totalItems' : fn:count($deliberations)
+    'totalItems' : fn:count($elements)
   }
 
-  let $results := array {
-    for $d in fn:subsequence($deliberations, $meta('start'), $meta('count'))
-    return deliberationToMap(
-      getDeliberation($d/@xml:id => fn:normalize-space(), $d/@meetingId => fn:normalize-space())
-    )
-  }
+  let $results := switch ($element)
+    case 'deliberation'
+      return array {
+        for $d in fn:subsequence($elements, $meta('start'), $meta('count'))
+        return deliberationToMap(
+          getDeliberation($d/@xml:id => fn:normalize-space(), $d/@meetingId => fn:normalize-space())
+        )
+      }
+    case 'affair'
+      return array{
+        for $d in fn:subsequence($elements, $meta('start'), $meta('count'))
+        return affairToMap(
+          getAffair($d/@xml:id => fn:normalize-space())
+        )
+      }
+    default return map{}
 
   return map{
     "meta": $meta,
