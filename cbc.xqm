@@ -362,6 +362,31 @@ function getDeliberationById($id) {
   return deliberationToMap($deliberation)
 };
 
+
+(:~
+ : This resource function returns all possible values
+ : for faceted search
+ :)
+declare
+  %rest:path("/cbc/deliberations/facets")
+  %rest:produces('application/json')
+  %output:media-type('application/json')
+  %output:method('json')
+function getDeliberationFacets() {
+  map {
+    'commune': array { fn:distinct-values(db:open('cbc')//deliberation//commune) },
+    'region': array { fn:distinct-values(db:open('cbc')//deliberation//region) },
+    'departement': array { fn:distinct-values(db:open('cbc')//deliberation//departement) },
+    'departementsAncien': array { fn:distinct-values(db:open('cbc')//deliberation//departementAncien) },
+    'projectGenre': array{ fn:distinct-values(db:open('cbc')//deliberation//category[@type = 'projectGenre']) },
+    'buildingType': array{ fn:distinct-values(db:open('cbc')//deliberation//category[@type = 'buildingType']) },
+    'buildingGenre': array{ fn:distinct-values(db:open('cbc')//deliberation//category[@type = 'buildingGenre']) },
+    'administrativeObject': array{ fn:distinct-values(db:open('cbc')//deliberation//category[@type = 'administrativeObject']) },
+    'participant': array{ fn:distinct-values(db:open('cbc')//meeting//deliberation//persName) }
+  }
+};
+
+
 (:~
  : This resource function lists all the deliberations
  : @return an json collection of deliberations
