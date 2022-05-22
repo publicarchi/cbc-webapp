@@ -376,8 +376,8 @@ function getDeliberationFacets() {
   map {
     'commune': array { fn:distinct-values(db:open('cbc')//deliberation//commune) },
     'region': array { fn:distinct-values(db:open('cbc')//deliberation//region) },
-    'departement': array { fn:distinct-values(db:open('cbc')//deliberation//departement) },
-    'departementsAncien': array { fn:distinct-values(db:open('cbc')//deliberation//departementAncien) },
+    'departement': array { fn:distinct-values(db:open('cbc')//deliberation//departement[fn:not(@type)]) },
+    'departementAncien': array { fn:distinct-values(db:open('cbc')//deliberation//departementAncien) },
     'projectGenre': array{ fn:distinct-values(db:open('cbc')//deliberation//category[@type = 'projectGenre']) },
     'buildingType': array{ fn:distinct-values(db:open('cbc')//deliberation//category[@type = 'buildingType']) },
     'buildingGenre': array{ fn:distinct-values(db:open('cbc')//deliberation//category[@type = 'buildingGenre']) },
