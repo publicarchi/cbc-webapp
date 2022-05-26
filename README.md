@@ -122,6 +122,8 @@ return insert node <affairId></affairId> into $d
 ### Créer un index pour les déliberations, affaires et séances
 
 ```xquery
+declare default element namespace "http://conbavil.fr/namespace";
+
 let $affairs :=
     <affairs>{
       for $affair in db:open('cbc')/conbavil//affair

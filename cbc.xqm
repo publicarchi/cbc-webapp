@@ -16,11 +16,11 @@ module namespace cbc.rest = "cbc.rest" ;
  :
  :)
 
-import module namespace G = "cbc.globals" at './globals.xqm' ;
+(:~ import module namespace G = "cbc.globals" at './globals.xqm' ;
 
 import module namespace cbc.mappings = "cbc.mappings" at './mappings.xqm' ;
-import module namespace cbc.models = 'cbc.models' at './models.xqm' ;
-import module namespace Session = 'http://basex.org/modules/session';
+import module namespace cbc.models = 'cbc.models' at './models.xqm' ; 
+import module namespace Session = 'http://basex.org/modules/session' ; ~:)
 
 declare namespace rest = "http://exquery.org/ns/restxq" ;
 declare namespace file = "http://expath.org/ns/file" ;
@@ -65,11 +65,8 @@ declare
   %output:media-type('application/json')
   %output:method('json')
 function getFiles() {
-  (:~ let $queryParams := map {} ~:)
-  let $data := db:open("cbc")//file
-  (:~ let $outputParams := map {} ~:)
-  return array {
-    for $file in $data return
+  array {
+    for $file in db:open("cbc")//file return
     map {
       "title" : fn:normalize-space($file/title) , (: @todo deal with mix content:)
       "idno" : fn:normalize-space($file/idno)
@@ -368,21 +365,21 @@ function getDeliberationById($id) {
  : for faceted search
  :)
 declare
-  %rest:path("/cbc/deliberations/facets")
+  %rest:path("/cbc/facets")
   %rest:produces('application/json')
   %output:media-type('application/json')
   %output:method('json')
 function getDeliberationFacets() {
   map {
-    'commune': array { fn:distinct-values(db:open('cbc')//deliberation//commune) },
-    'region': array { fn:distinct-values(db:open('cbc')//deliberation//region) },
-    'departement': array { fn:distinct-values(db:open('cbc')//deliberation//departement[fn:not(@type)]) },
-    'departementAncien': array { fn:distinct-values(db:open('cbc')//deliberation//departementAncien) },
-    'projectGenre': array{ fn:distinct-values(db:open('cbc')//deliberation//category[@type = 'projectGenre']) },
-    'buildingType': array{ fn:distinct-values(db:open('cbc')//deliberation//category[@type = 'buildingType']) },
-    'buildingGenre': array{ fn:distinct-values(db:open('cbc')//deliberation//category[@type = 'buildingGenre']) },
-    'administrativeObject': array{ fn:distinct-values(db:open('cbc')//deliberation//category[@type = 'administrativeObject']) },
-    'participant': array{ fn:distinct-values(db:open('cbc')//meeting//deliberation//persName) }
+    'commune': array { for $x in db:open('cbcFacets')//commune/@text return $x => fn:normalize-space()},
+    'region': array { for $x in db:open('cbcFacets')//region/@text return $x => fn:normalize-space()},
+    'departement': array { for $x in db:open('cbcFacets')//departement/@text return $x => fn:normalize-space()},
+    'departementAncien': array { for $x in db:open('cbcFacets')//departementAncien/@text return $x => fn:normalize-space()},
+    'projectGenre': array{ for $x in db:open('cbcFacets')//projectGenre/@text return $x => fn:normalize-space()},
+    'buildingType': array{ for $x in db:open('cbcFacets')//buildingType/@text return $x => fn:normalize-space()},
+    'buildingCategory': array{ for $x in db:open('cbcFacets')//buildingCategory/@text return $x => fn:normalize-space() },
+    'administrativeObject': array{ for $x in db:open('cbcFacets')//administrativeObject/@text return $x => fn:normalize-space()},
+    'participant': array{ for $x in db:open('cbcFacets')//participant/@persName return $x => fn:normalize-space()}
   }
 };
 
@@ -509,8 +506,8 @@ function postAffair($content) {
       </meta>
     </affair>
   )
-  
-  return switch ($type) 
+  return 
+  switch ($type) 
     case "modification" 
       return (
         replace node db:open('cbc')/conbavil/affairs/affair[@xml:id = $affairId] with $affair,
@@ -518,13 +515,13 @@ function postAffair($content) {
         return replace value of node db:open('cbc')//deliberations[@xml:id = $data('deliberations')($i)('id')] with $affairId,
         update:output(httpResponse(200, 'La ressource bien été modifiée.'))
       )
-  case "creation" 
-    return (
-      insert node $affair into $affairs,
-      for $i in (1 to array:size($data('deliberations')))
-      return replace value of node db:open('cbc')//deliberation[@xml:id = $data('deliberations')($i)('id')]/affairId with $affairId,
-      update:output(httpResponse(200, 'La ressource bien été créée.'))
-    )
-  default 
-    return update:output(httpResponse(500, "Un problème est survenu, la ressource n'a pas pu être créée/modifiée."))
+    case "creation" 
+      return (
+        insert node $affair into $affairs,
+        for $i in (1 to array:size($data('deliberations')))
+        return replace value of node db:open('cbc')//deliberation[@xml:id = $data('deliberations')($i)('id')]/affairId with $affairId,
+        update:output(httpResponse(200, 'La ressource bien été créée.'))
+      )
+    default 
+      return update:output(httpResponse(500, "Un problème est survenu, la ressource n'a pas pu être créée/modifiée."))
 };
