@@ -44,6 +44,130 @@ declare default function namespace "cbc.rest" ;
 
 declare default collation "http://basex.org/collation?lang=fr" ;
 
+declare function getPages($meeting as element(), $params as map(*)) as map(*) {
+  let $pages := $meeting/deliberations/deliberation/pages ! fn:analyze-string(., '\d+')//fn:match
+    => fn:distinct-values()
+    => fn:sort()
+  return
+    if (fn:count($pages) >1)
+    then map {
+      "label" : "pp.",
+      "pages" : $pages[1] || "-" || $pages[fn:last()]
+    }
+    else map {
+      "label" : "p.",
+      "pages" : $pages[1]
+    }
+};
+
+declare function extractBuildingTypes($element as element()) as item()* {
+  let $buildingType := $element//categories/category[@type="buildingType"]
+    => fn:distinct-values()
+  return array { $buildingType }
+};
+
+declare function extractCategories($element as element()) as item()* {
+  let $categories := $element//categories/category[@type="projectGenre"]
+    => fn:distinct-values()
+  return array { $categories }
+};
+
+declare function extractAdministrativeObjects($element as element()) as item()* {
+  let $categories := $element//categories/category[@type="administrativeObject"]
+    => fn:distinct-values()
+  return array { $categories }
+};
+
+declare function httpResponse($code as xs:integer, $msg as xs:string) as item()+ {
+  let $res := (
+     <rest:response>
+          <http:response status="{$code}" message="">
+            <http:header name="Content-Language" value="fr"/>
+            <http:header name="Content-Type" value="text/plain; charset=utf-8"/>
+          </http:response>
+        </rest:response>,
+        map {
+          "message" : $msg
+        }
+  )
+  return $res
+};
+
+declare function getDeliberation($id as xs:string, $meetingId as xs:string) as element() {
+   db:open('cbc')/conbavil/files/file/meetings
+        /meeting[@xml:id = $meetingId]
+        //deliberation[@xml:id = $id]
+};
+
+declare function getAffair($id as xs:string) as element() {
+   db:open('cbc')/conbavil//affair[@xml:id = $id]
+};
+
+declare function deliberationToMap($deliberation as element()) as map(*) {
+ let $result := map{
+      "meetingId": $deliberation/meetingId => fn:normalize-space(),
+      "affairId": $deliberation/affairId => fn:normalize-space(),
+      "seance" : $deliberation/parent::deliberations/parent::meeting/date/@when => fn:normalize-space(),
+      "cote" : $deliberation/parent::deliberations/parent::meeting/parent::meetings/parent::file/idno => fn:normalize-space(),
+      "id" : $deliberation/@xml:id => fn:normalize-space(),
+      "title" : $deliberation/title => fn:normalize-space(),
+      "altTitle" : $deliberation/altTitle => fn:normalize-space(),
+      "item" : $deliberation/item => fn:normalize-space(),
+      "pages" : $deliberation/pages => fn:normalize-space(),
+      "localisation" : map {
+        "commune" : $deliberation/localisation/commune[.!=@type] => fn:normalize-space(),
+        "communeAncien" : $deliberation/localisation/commune[@type="orig"] => fn:normalize-space(),
+        "adress" : $deliberation/localisation/adresse[@type="orig"] => fn:normalize-space(),
+        "departementDecimal" : $deliberation/localisation/departement[@type="decimal"] => fn:normalize-space(),
+        "departement" : $deliberation/localisation/departement[fn:not(@type)] => fn:normalize-space(),
+        "region" : $deliberation/localisation/region => fn:normalize-space()
+      },
+      "buildingTypes" : extractBuildingTypes($deliberation),
+      "buildingCategories" : extractCategories($deliberation),
+      "administrativeObjects": extractAdministrativeObjects($deliberation),
+      "report" : $deliberation/report/author => fn:normalize-space(),
+      "recommendation" : $deliberation/recommendation => fn:normalize-space(),
+      "advice" : $deliberation//advice => fn:normalize-space()
+    }
+    return $result
+};
+
+declare function affairToMap($affair as element()) as map(*) {
+  let $result := map{
+    'id': $affair/[@xml:id] => fn:normalize-space(),
+    'title': $affair/title => fn:normalize-space(),
+    'localisation': map{
+      'commune': $affair/localisation/commune => fn:normalize-space(),
+      'departementDecimal': $affair/localisation/departementDecimal => fn:normalize-space(),
+      'departement': $affair/localisation/departement => fn:normalize-space(),
+      'departementAncien': $affair/localisation/departementAncien => fn:normalize-space(),
+      'region': $affair/localisation/region => fn:normalize-space()
+    },
+    'types': extractBuildingTypes($affair),
+	  'deliberations': array{
+      for $deliberation in $affair/deliberations/deliberation
+      let $id := $deliberation/[@id] => fn:normalize-space()
+      let $meetingId := $deliberation/[@meetingId] => fn:normalize-space()
+      let $d := db:open("cbc")/conbavil/files/file/meetings/meeting[@xml:id = $meetingId]/deliberations/deliberation[@xml:id = $id]
+      return deliberationToMap($d)
+    },
+    'meta': metaToArray($affair)
+  }
+  return $result
+};
+
+declare function metaToArray($element as element()) as array(*) {
+  let $meta := array{
+    for $m in $element//change
+    return map {
+        'type': $m/[@type] => fn:normalize-space(),
+        'when': $m/[@when] => fn:normalize-space(),
+        'who': $m/[@who] => fn:normalize-space()
+      } 
+  }
+  return $meta
+};
+
 (:~
  : This resource function defines the application home
  : @return redirect to the report list
@@ -114,124 +238,6 @@ function getMeetings($start, $count) {
     "meta": $meta,
     "content": $content
   }
-};
-
-declare function getPages($meeting as element(), $params as map(*)) as map(*) {
-  let $pages := $meeting/deliberations/deliberation/pages ! fn:analyze-string(., '\d+')//fn:match
-    => fn:distinct-values()
-    => fn:sort()
-  return
-    if (fn:count($pages) >1)
-    then map {
-      "label" : "pp.",
-      "pages" : $pages[1] || "-" || $pages[fn:last()]
-    }
-    else map {
-      "label" : "p.",
-      "pages" : $pages[1]
-    }
-};
-
-declare function extractBuildingTypes($element as element()) as item()* {
-  let $buildingType := $element//categories/category[@type="buildingType"]
-    => fn:distinct-values()
-  return array { $buildingType }
-};
-
-declare function extractCategories($element as element()) as item()* {
-  let $categories := $element//categories/category[@type="projectGenre"]
-    => fn:distinct-values()
-  return array { $categories }
-};
-
-declare function httpResponse($code as xs:integer, $msg as xs:string) as item()+ {
-  let $res := (
-     <rest:response>
-          <http:response status="{$code}" message="">
-            <http:header name="Content-Language" value="fr"/>
-            <http:header name="Content-Type" value="text/plain; charset=utf-8"/>
-          </http:response>
-        </rest:response>,
-        map {
-          "message" : $msg
-        }
-  )
-  return $res
-};
-
-declare function getDeliberation($id as xs:string, $meetingId as xs:string) as element() {
-   db:open('cbc')/conbavil/files/file/meetings
-        /meeting[@xml:id = $meetingId]
-        //deliberation[@xml:id = $id]
-};
-
-declare function getAffair($id as xs:string) as element() {
-   db:open('cbc')/conbavil//affair[@xml:id = $id]
-};
-
-declare function deliberationToMap($deliberation as element()) as map(*) {
- let $result := map{
-      "meetingId": $deliberation/meetingId => fn:normalize-space(),
-      "affairId": $deliberation/affairId => fn:normalize-space(),
-      "seance" : $deliberation/parent::deliberations/parent::meeting/date/@when => fn:normalize-space(),
-      "cote" : $deliberation/parent::deliberations/parent::meeting/parent::meetings/parent::file/idno => fn:normalize-space(),
-      "id" : $deliberation/@xml:id => fn:normalize-space(),
-      "title" : $deliberation/title => fn:normalize-space(),
-      "altTitle" : $deliberation/altTitle => fn:normalize-space(),
-      "item" : $deliberation/item => fn:normalize-space(),
-      "pages" : $deliberation/pages => fn:normalize-space(),
-      "localisation" : map {
-        "commune" : $deliberation/localisation/commune[.!=@type] => fn:normalize-space(),
-        "communeAncien" : $deliberation/localisation/commune[@type="orig"] => fn:normalize-space(),
-        "adress" : $deliberation/localisation/adresse[@type="orig"] => fn:normalize-space(),
-        "departementDecimal" : $deliberation/localisation/departement[@type="decimal"] => fn:normalize-space(),
-        "departement" : $deliberation/localisation/departement[fn:not(@type)] => fn:normalize-space(),
-        "departementAncien" : $deliberation/localisation/departement[@type="orig"] => fn:normalize-space(),
-        "region" : $deliberation/localisation/region => fn:normalize-space()
-      },
-      "types" : extractBuildingTypes($deliberation),
-      "categories" : extractCategories($deliberation),
-      "report" : $deliberation/report => fn:normalize-space(),
-      "recommendation" : $deliberation/recommendation => fn:normalize-space(),
-      "advice" : $deliberation//advice => fn:normalize-space()
-    }
-    return $result
-};
-
-declare function affairToMap($affair as element()) as map(*) {
-  let $result := map{
-    'id': $affair/[@xml:id] => fn:normalize-space(),
-    'title': $affair/title => fn:normalize-space(),
-    'localisation': map{
-      'commune': $affair/localisation/commune => fn:normalize-space(),
-      'departementDecimal': $affair/localisation/departementDecimal => fn:normalize-space(),
-      'departement': $affair/localisation/departement => fn:normalize-space(),
-      'departementAncien': $affair/localisation/departementAncien => fn:normalize-space(),
-      'region': $affair/localisation/region => fn:normalize-space()
-    },
-    'types': extractBuildingTypes($affair),
-	  'deliberations': array{
-      for $deliberation in $affair/deliberations/deliberation
-      let $id := $deliberation/[@id] => fn:normalize-space()
-      let $meetingId := $deliberation/[@meetingId] => fn:normalize-space()
-      let $d := db:open("cbc")/conbavil/files/file/meetings/meeting[@xml:id = $meetingId]/deliberations/deliberation[@xml:id = $id]
-      return deliberationToMap($d)
-    },
-    'meta': metaToArray($affair)
-  }
-  return $result
-};
-
-declare function metaToArray($element as element()) as array(*) {
-  let $meta := array{
-    for $m in $element//change
-    return map {
-        'type': $m/[@type] => fn:normalize-space(),
-        'when': $m/[@when] => fn:normalize-space(),
-        'who': $m/[@who] => fn:normalize-space()
-      } 
-  }
-  return $meta
 };
 
 (:~
@@ -483,7 +489,6 @@ function postAffair($content) {
         <commune>{$data('localisation')('commune')}</commune>
         <departement>{$data('localisation')('departement')}</departement>
         <departementDecimal>{$data('localisation')('departementDecimal')}</departementDecimal>
-        <departementAncien>{$data('localisation')('departementAncien')}</departementAncien>
         <region>{$data('localisation')('region')}</region>
       </localisation>
       <deliberations>
@@ -510,9 +515,9 @@ function postAffair($content) {
   switch ($type) 
     case "modification" 
       return (
-        replace node db:open('cbc')/conbavil/affairs/affair[@xml:id = $affairId] with $affair,
+        replace node db:open('cbc')//affair[@xml:id = $affairId] with $affair,
         for $i in (1 to array:size($data('deliberations')))
-        return replace value of node db:open('cbc')//deliberations[@xml:id = $data('deliberations')($i)('id')] with $affairId,
+        return replace value of node db:open('cbc')//deliberation[@xml:id = $data('deliberations')($i)('id')]/affairId with $affairId,
         update:output(httpResponse(200, 'La ressource bien été modifiée.'))
       )
     case "creation" 
@@ -524,4 +529,82 @@ function postAffair($content) {
       )
     default 
       return update:output(httpResponse(500, "Un problème est survenu, la ressource n'a pas pu être créée/modifiée."))
+};
+
+(:~
+ : This resource function post a new affair
+ : @todo add id
+ :)
+declare
+  %rest:path("/cbc/deliberations/post")
+  %rest:POST("{$content}")
+  %rest:produces('application/json')
+  %output:media-type('application/xml')
+  %output:method('json')
+  %updating
+function postDeliberationOOO($content) {
+  let $body := json:parse($content, map {'format': 'xquery'})
+  let $data := $body('deliberation')
+  let $type := $body('type')
+
+  let $deliberations := db:open('cbc')//deliberations
+
+  let $deliberationId := 
+    if ($type = 'modification') then $data('id')
+    else fn:generate-id($deliberations)
+
+  let $deliberation := (
+    <deliberation xml:id="{$deliberationId}">
+      <title>{$data('title')}</title>
+      <altTitle>{$data('altTitle')}</altTitle>
+      <meetingId>{$data('meetingId')}</meetingId>
+      <affairId>{$data('affairId')}</affairId>
+      <cote>{$data('cote')}</cote>
+      <report><author>{ $data('report') }</author></report>
+      <recommandation>{$data('recommandation')}</recommandation>
+      <advice>{$data('advice')}</advice>
+      <localisation>
+        <commune>{$data('localisation')('commune')}</commune>
+        <communeAncien>{$data('localisation')('communeAncien')}</communeAncien>
+        <departement>{$data('localisation')('departement')}</departement>
+        <departementDecimal>{$data('localisation')('departementDecimal')}</departementDecimal>
+        <region>{$data('localisation')('region')}</region>
+      </localisation>
+      
+      <categories>
+      {
+        for $i in (1 to array:size($data('buildingTypes')))
+        return <category type="buildingType">{ $data('buildingTypes')($i) }</category>,
+        
+        for $i in (1 to array:size($data('buildingCategories')))
+        return <category type="buildingCategories">{ $data('buildingCategories')($i) }</category>,
+        
+        for $i in (1 to array:size($data('administrativeObjects')))
+        return <category type="administrativeObject">{ $data('administrativeObjects')($i) }</category>
+      }
+      </categories>
+      <meta>
+      {
+        for $i in (1 to array:size($data('meta')))
+        return <change type="{ $data('meta')($i)('type') }" who="{ $data('meta')($i)('who') }" when="{ $data('meta')($i)('when') }" />
+      }
+      </meta>
+    </deliberation>
+  )
+
+  return 
+  switch ($type) 
+    case "modification" 
+      return (
+        replace node db:open('cbc')//deliberation[@xml:id = $deliberationId] with $deliberation,
+        update:output(httpResponse(200, 'La ressource bien été modifiée.'))
+      )
+    case "creation" 
+      return (
+        insert node $deliberation into $deliberations,
+        update:output(httpResponse(200, 'La ressource bien été créée.'))
+      )
+    default 
+      return update:output(httpResponse(500, "Un problème est survenu, la ressource n'a pas pu être créée/modifiée."))
+  
 };
