@@ -66,7 +66,7 @@ declare function extractBuildingTypes($element as element()) as item()* {
   return array { $buildingType }
 };
 
-declare function extractCategories($element as element()) as item()* {
+declare function extractProjectGenres($element as element()) as item()* {
   let $categories := $element//categories/category[@type="projectGenre"]
     => fn:distinct-values()
   return array { $categories }
@@ -123,7 +123,7 @@ declare function deliberationToMap($deliberation as element()) as map(*) {
         "region" : $deliberation/localisation/region => fn:normalize-space()
       },
       "buildingTypes" : extractBuildingTypes($deliberation),
-      "buildingCategories" : extractCategories($deliberation),
+      "projectGenres" : extractProjectGenres($deliberation),
       "administrativeObjects": extractAdministrativeObjects($deliberation),
       "report" : $deliberation/report/author => fn:normalize-space(),
       "recommendation" : $deliberation/recommendation => fn:normalize-space(),
@@ -155,6 +155,25 @@ declare function affairToMap($affair as element()) as map(*) {
   }
   return $result
 };
+
+declare function meetingToMap($meeting as element()) as map(*) {
+  map {
+    "id": $meeting/@xml:id => fn:normalize-space(),
+    "title" : $meeting/title => fn:normalize-space(), (: @todo deal with mix content:)
+    "date" : $meeting/date/@when => fn:normalize-space(),
+    "cote" : $meeting/parent::meetings/parent::file/idno => fn:normalize-space(),
+    "coteDev" : $meeting/parent::meetings/parent::file/title => fn:normalize-space(),
+    "pages" : getPages($meeting, map{}),
+    "nb" : $meeting/deliberations/deliberation => fn:count(),
+    "projectTypes" : array{ extractBuildingTypes($meeting) },
+    "projectGenres" : array{ extractProjectGenres($meeting) },
+    "deliberations" : array{
+      for $deliberation in $meeting/deliberations/deliberation
+      return deliberationToMap($deliberation)
+    }
+  }
+};
+
 
 declare function metaToArray($element as element()) as array(*) {
   let $meta := array{
@@ -218,26 +237,28 @@ function getMeetings($start, $count) {
   }
   let $content :=  array{
     for $meeting in fn:subsequence($data/meeting, $start, $count)
-    return map {
-      "title" : $meeting/title => fn:normalize-space(), (: @todo deal with mix content:)
-      "date" : $meeting/date/@when => fn:normalize-space(),
-      "cote" : $meeting/parent::meetings/parent::file/idno => fn:normalize-space(),
-      "coteDev" : $meeting/parent::meetings/parent::file/title => fn:normalize-space(),
-      "pages" : getPages($meeting, map{}),
-      "nb" : $meeting/deliberations/deliberation => fn:count(),
-      "types" : array{ extractBuildingTypes($meeting) },
-      "categories" : array{ extractCategories($meeting) },
-      "deliberations" : array{
-        for $deliberation in $meeting/deliberations/deliberation
-        return deliberationToMap($deliberation)
-      }
+    return meetingToMap($meeting)
     }
-  }
 
   return map{
     "meta": $meta,
-    "content": $content
+    "meetings": $content
   }
+};
+
+(:~
+ : This resource function lists all the meetings
+ : @return an ordered list of report in xml
+ :)
+declare
+  %rest:path("/cbc/meetings/{$id}")
+  %rest:produces('application/json')
+  %output:media-type('application/json')
+  %output:method('json')
+function getMeeting($id) {
+  meetingToMap(
+    db:open('cbc')//meeting[@xml:id = $id]
+  )
 };
 
 (:~
@@ -317,10 +338,18 @@ function search($content) {
   let $body := json:parse($content, map{'format': 'xquery'})
   let $terms := $body('terms')
   let $element := $body('element')
+  let $facets := $body('facets')
 
   let $elements := db:open('cbcFt')//*[fn:name() = $element][
     text() contains text {for $t in $terms return $t} all words
   ]
+
+  (:~ let $dbFacets:= db:open('cbcFacets')
+  let $faceted := array {
+    for $f in $facets
+      for $val in $facets($f)
+        for $e in $dbFacets/*[fn:name() = $f]
+  } ~:)
     
   let $meta := map {
     'start' : xs:integer($body('meta')('start')),
@@ -382,8 +411,7 @@ function getDeliberationFacets() {
     'departement': array { for $x in db:open('cbcFacets')//departement/@text return $x => fn:normalize-space()},
     'departementAncien': array { for $x in db:open('cbcFacets')//departementAncien/@text return $x => fn:normalize-space()},
     'projectGenre': array{ for $x in db:open('cbcFacets')//projectGenre/@text return $x => fn:normalize-space()},
-    'buildingType': array{ for $x in db:open('cbcFacets')//buildingType/@text return $x => fn:normalize-space()},
-    'buildingCategory': array{ for $x in db:open('cbcFacets')//buildingCategory/@text return $x => fn:normalize-space() },
+    'buildingType': array{ for $x in db:open('cbcFacets')//buildingType/label return $x => fn:normalize-space()},
     'administrativeObject': array{ for $x in db:open('cbcFacets')//administrativeObject/@text return $x => fn:normalize-space()},
     'participant': array{ for $x in db:open('cbcFacets')//participant/@persName return $x => fn:normalize-space()}
   }
@@ -542,7 +570,7 @@ declare
   %output:media-type('application/xml')
   %output:method('json')
   %updating
-function postDeliberationOOO($content) {
+function postDeliberation($content) {
   let $body := json:parse($content, map {'format': 'xquery'})
   let $data := $body('deliberation')
   let $type := $body('type')
