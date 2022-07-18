@@ -233,7 +233,7 @@ function getMeetings($start, $count) {
   let $meta := map {
     'start' : $start,
     'count' : $count,
-    'totalItems' : fn:count($data)
+    'totalItems' : fn:count($data/meeting)
   }
   let $content :=  array{
     for $meeting in fn:subsequence($data/meeting, $start, $count)
@@ -423,7 +423,7 @@ function getDeliberationFacets() {
  : @return an json collection of deliberations
  :)
 declare
-  %rest:path("/cbc/affaires")
+  %rest:path("/cbc/affairs")
   %rest:produces('application/json')
   %output:media-type('application/json')
   %output:method('json')
@@ -561,7 +561,7 @@ function postAffair($content) {
 
 (:~
  : This resource function post a new affair
- : @todo add id
+ `: @todo add id
  :)
 declare
   %rest:path("/cbc/deliberations/post")
