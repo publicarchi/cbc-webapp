@@ -1,6 +1,6 @@
 declare default element namespace "http://conbavil.fr/namespace";
 
-let $db := db:open('cbc')
+let $db := db:get('cbc')
 
 let $communes := 
 <communes>{
