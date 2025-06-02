@@ -26,6 +26,7 @@ import module namespace G = "cbc.globals" at './globals.xqm' ;
 
 declare namespace db = "http://basex.org/modules/db" ;
 declare namespace file = "http://expath.org/ns/file" ;
+declare namespace fn = "http://www.w3.org/2005/xpath-functions" ;
 declare namespace http = "http://expath.org/ns/http-client" ;
 declare namespace json = "http://basex.org/modules/json" ;
 declare namespace map = "http://www.w3.org/2005/xpath-functions/map" ;
@@ -37,8 +38,8 @@ declare namespace update = "http://basex.org/modules/update" ;
 declare namespace user = "http://basex.org/modules/user" ;
 declare namespace web = "http://basex.org/modules/web" ;
 
-declare namespace cbc = "http://conbavil.fr/namespace" ;
-declare default element namespace "http://conbavil.fr/namespace" ;
+declare namespace cbc = "http://public.archi/conbavil/namespace" ;
+declare default element namespace "http://public.archi/conbavil/namespace" ;
 declare default function namespace "cbc.rest" ;
 
 import module namespace cbc.models = 'cbc.models' at './models.xqm' ;
@@ -68,10 +69,10 @@ declare
   %rest:query-param("start", "{$start}", 1)
   %rest:query-param("count", "{$count}", 20)
 function getFiles($start, $count) {
-  let $data := db:get('cbc')/conbavil/files
+  let $data := db:get('cbc')/conbavil/files/file
   let $meta := map {
     'title' : "Liste des cotes",
-    'idno' : fn:string-join($G:domain, "/files"),
+    'idno' : fn:string-join($G:domain, "/cbc/files"),
     'start' : $start,
     'count' : $count,
     'quantity' : fn:count($data)
@@ -80,7 +81,8 @@ function getFiles($start, $count) {
     for  $file in $data
     return map {
         'title' : fn:normalize-space($file/title), (: @todo deal with mix content:)
-        'idno' : fn:normalize-space($file/idno)
+        'idno' : $G:domain || "/cbc/" || $file/@xml:id,
+        'id' : ( $file/@xml:id => fn:string() )
       }
     }
   return map{
@@ -94,6 +96,30 @@ function getFiles($start, $count) {
  : @param $id file id
  : @return a file description
  :)
+ declare
+   %rest:path("/cbc/files/{$id}")
+   %rest:produces("application/json")
+   %output:media-type("application/json")
+   %output:method("json")
+ function getFilesById($id as xs:string) {
+   let $data := db:get('cbc')/conbavil/files/file[@xml:id = $id]
+   let $meta := map {
+     'title' : "Registre " || $id,
+     'idno' : $G:domain || "/cbc/files/" || $id
+     }
+   let $content :=
+     map {
+       'title' : fn:normalize-space($data/title), (: @todo deal with mix content:)
+       'idno' : $G:domain || "/cbc/" || $data/@xml:id,
+       'id' : $id,
+       'nbMeetings' : fn:count($data/meetings/meeting),
+       'nbDeliberations' : fn:count($data/meetings/meeting/deliberations/deliberation)
+     }
+   return map{
+        'meta': $meta,
+        'meetings': $content
+      }
+ };
 
 (:~
  : Resource function for meetings
@@ -107,16 +133,16 @@ declare
   %rest:query-param("start", "{$start}", 1)
   %rest:query-param("count", "{$count}", 20)
 function getMeetings($start, $count) {
-  let $data := db:get('cbc')/conbavil/files
+  let $data := db:get('cbc')/conbavil/files/file/meetings/meeting
   let $meta := map {
     'title' : "Liste des séances",
     'idno' : $G:domain || "/cbc/meetings",
     'start' : $start,
     'count' : $count,
-    'quantity' : fn:count($data/meeting)
+    'quantity' : fn:count($data)
   }
   let $content :=  array {
-    for $meeting in fn:subsequence($data/meeting, $start, $count)
+    for $meeting in fn:subsequence($data, $start, $count)
     return cbc.models:meetingToMap($meeting)
     }
   return map{
@@ -136,10 +162,11 @@ declare
   %output:media-type("application/json")
   %output:method("json")
 function getMeeting($id) {
-  let $data := db:get('cbc')//meeting[@xml:id = $id]
+  let $data := db:get('cbc')/conbavil/files/file/meetings/meeting[@xml:id = $id]
   let $meta := map {
-    'title' : "Séance du " || "@todo",
-    'idno' : $G:domain || "/meetings/" || $id
+    'title' : fn:normalize-space($data/title),
+    'idno' : $G:domain || "/cbc/meetings/" || $id,
+    'ndDeliberations' : fn:count($data/deliberations/deliberation)
   }
   let $content := cbc.models:meetingToMap($data)
   return map {
