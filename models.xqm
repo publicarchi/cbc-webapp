@@ -9,11 +9,6 @@ module namespace cbc.models = "cbc.models" ;
  : @version 0.3
  : @licence GNU http://www.gnu.org/licenses
  :
- : cbc is free software: you can redistribute it and/or modify
- : it under the terms of the GNU General Public License as published by
- : the Free Software Foundation, either version 3 of the License, or
- : (at your option) any later version.
- :
  :)
 
 import module namespace G = "cbc.globals" at './globals.xqm' ;
@@ -43,7 +38,6 @@ declare default collation "http://basex.org/collation?lang=fr" ;
 
 (:~
  : this function return a mime-type for a specified file
- :
  : @param  $name  file name
  : @return a mime type for the specified file
  :)
@@ -52,8 +46,7 @@ declare function mime-type($name as xs:string) as xs:string {
 };
 
 (:~
- : this function call a wrapper
- :
+ : this function calls a wrapper
  : @param $content the content to serialize
  : @param $outputParams the output params
  : @return an updated document and instantiated pattern
@@ -78,7 +71,6 @@ declare function wrapper($content as map(*), $outputParams as map(*)) as node()*
 
 (:~
  : this function get the models
- :
  : @param $content the content params
  : @return the default models or its instance version
  : @bug not generic enough
@@ -101,7 +93,6 @@ declare function getModels($content as map(*)){
 
 (:~
  : this function get the models
- :
  : @param $content the content params
  : @return the default models or its instance version
  : @bug not generic enough
@@ -115,7 +106,6 @@ declare function getTriggers($content as map(*)){
 
 (:~
  : this function get the forms
- :
  : @param $content the content params
  : @return the default forms or its instance version
  : @bug not generic enough
@@ -130,7 +120,6 @@ declare function getForms($content as map(*)){
 
 (:~
  : this function dispatch the content with the data
- :
  : @param $content the content to serialize
  : @param $outputParams the serialization params
  : @return an updated node with the data
@@ -176,6 +165,14 @@ declare function getXsltPath($queryParam, $xsl) {
   '@todo'
 };
 
+(:~
+ : this function get metting pagination
+ : @param $meeting the meeting id
+ : @param $outputParams the serialization params
+ : @return a amp with label and interval
+ : @bug the behavior is not complete
+ : @todo add explicit pagination to paginate IIIF
+ :)
 declare function getPages($meeting as element(), $params as map(*)) as map(*) {
   let $pages := $meeting/deliberations/deliberation/pages ! fn:analyze-string(., '\d+')//fn:match
     => fn:distinct-values()
@@ -288,7 +285,9 @@ declare function affairToMap($affair as element()) as map(*) {
   return $result
 };
 
-declare function meetingToMap($meeting as element()) as map(*) {
+(:
+~:)
+declare function meetingToMap($meeting as element(meeting)) as map(*) {
   map {
     "id": $meeting/@xml:id => fn:normalize-space(),
     "title" : $meeting/title => fn:normalize-space(), (: @todo deal with mix content:)

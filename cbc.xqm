@@ -73,6 +73,7 @@ function getFiles($start, $count) {
   let $meta := map {
     'title' : "Liste des cotes",
     'idno' : fn:string-join($G:domain, "/cbc/files"),
+    'id' : 'files',
     'start' : $start,
     'count' : $count,
     'quantity' : fn:count($data)
@@ -104,12 +105,13 @@ function getFiles($start, $count) {
  function getFilesById($id as xs:string) {
    let $data := db:get('cbc')/conbavil/files/file[@xml:id = $id]
    let $meta := map {
-     'title' : "Registre " || $id,
-     'idno' : $G:domain || "/cbc/files/" || $id
+     'title': "Registre " || $id,
+     'idno' : $G:domain || "/cbc/files/" || $id,
+     'id' : $id
      }
    let $content :=
      map {
-       'title' : fn:normalize-space($data/title), (: @todo deal with mix content:)
+       'title' : fn:normalize-space($data/title), (: @todo deal with mix content :)
        'idno' : $G:domain || "/cbc/" || $data/@xml:id,
        'id' : $id,
        'nbMeetings' : fn:count($data/meetings/meeting),
@@ -137,6 +139,7 @@ function getMeetings($start, $count) {
   let $meta := map {
     'title' : "Liste des séances",
     'idno' : $G:domain || "/cbc/meetings",
+    'id' : 'meetings',
     'start' : $start,
     'count' : $count,
     'quantity' : fn:count($data)
@@ -166,6 +169,7 @@ function getMeeting($id) {
   let $meta := map {
     'title' : fn:normalize-space($data/title),
     'idno' : $G:domain || "/cbc/meetings/" || $id,
+    'id' : $id,
     'ndDeliberations' : fn:count($data/deliberations/deliberation)
   }
   let $content := cbc.models:meetingToMap($data)
@@ -191,6 +195,7 @@ function getDeliberations($start, $count) {
   let $meta := map {
     'title' : "Liste des délibérations",
     'idno' : $G:domain || "/cbc/deliberations",
+    'id' : 'deliberations',
     'start' : $start,
     'count' : $count,
     'quantity' : fn:count($deliberations)
@@ -219,7 +224,8 @@ function getDeliberationById($id) {
   let $data := db:get("cbc")//deliberation[@xml:id = $id]
   let $meta := map {
     'title' : "Délibération " || "@todo",
-    'idno' : $G:domain || "/cbc/deliberations/" || $id
+    'idno' : $G:domain || "/cbc/deliberations/" || $id,
+    'id' : $id
   }
   let $content := cbc.models:deliberationToMap($data)
   return map {
@@ -244,12 +250,15 @@ declare
   %output:media-type('application/json')
   %output:method('json')
 function getTypes() {
+  let $types := db:get("cbc")/conbavil/files/file/meetings/meeting/deliberations/deliberation/categories/category[@type="buildingType"][.!=""]
   let $meta := map {
     'title' : "Liste des types",
-    'idno' : $G:domain || "/cbc/types/"
+    'idno' : $G:domain || "/cbc/types/",
+    'id' : 'types',
+    'quantity' : fn:count($types)
   }
   let $content := array{
-     db:get("cbc")/conbavil/files/file/meetings/meeting/deliberations/deliberation/categories/category[@type="buildingType"][.!=""]
+     $types
          => fn:distinct-values()
          => fn:sort()
   }
@@ -269,9 +278,15 @@ declare
   %output:media-type('application/json')
   %output:method('json')
 function getCategories() {
-  let $meta := {}
+  let $categories := db:get("cbc")/conbavil/files/file/meetings/meeting/deliberations/deliberation/categories/category[@type="projectGenre"][.!=""]
+  let $meta := {
+    'title' : "Liste des catégories",
+    'idno' : $G:domain || "/cbc/categories/",
+    'id' : 'categories',
+    'quantity' : fn:count($categories)
+  }
   let $content := array {
-    db:get("cbc")/conbavil/files/file/meetings/meeting/deliberations/deliberation/categories/category[@type="projectGenre"][.!=""]
+    $categories
           => fn:distinct-values()
           => fn:sort()
   }
