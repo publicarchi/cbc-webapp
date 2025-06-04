@@ -170,7 +170,7 @@ function getMeeting($id) {
     'title' : fn:normalize-space($data/title),
     'idno' : $G:domain || "/cbc/meetings/" || $id,
     'id' : $id,
-    'ndDeliberations' : fn:count($data/deliberations/deliberation)
+    'nbDeliberations' : fn:count($data/deliberations/deliberation)
   }
   let $content := cbc.models:meetingToMap($data)
   return map {
