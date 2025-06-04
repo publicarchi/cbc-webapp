@@ -72,7 +72,7 @@ function getFiles($start, $count) {
   let $data := db:get('cbc')/conbavil/files/file
   let $meta := map {
     'title' : "Liste des cotes",
-    'idno' : fn:string-join($G:domain, "/cbc/files"),
+    'idno' : $G:domain || "/cbc/files",
     'id' : 'files',
     'start' : $start,
     'count' : $count,
@@ -82,7 +82,7 @@ function getFiles($start, $count) {
     for  $file in $data
     return map {
         'title' : fn:normalize-space($file/title), (: @todo deal with mix content:)
-        'idno' : $G:domain || "/cbc/" || $file/@xml:id,
+        'idno' : $G:domain || "/cbc/files/" || $file/@xml:id,
         'id' : ( $file/@xml:id => fn:string() )
       }
     }
@@ -112,7 +112,7 @@ function getFiles($start, $count) {
    let $content :=
      map {
        'title' : fn:normalize-space($data/title), (: @todo deal with mix content :)
-       'idno' : $G:domain || "/cbc/" || $data/@xml:id,
+       'idno' : $G:domain || "/cbc/files/" || $data/@xml:id,
        'id' : $id,
        'nbMeetings' : fn:count($data/meetings/meeting),
        'nbDeliberations' : fn:count($data/meetings/meeting/deliberations/deliberation)

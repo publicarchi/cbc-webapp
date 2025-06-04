@@ -18,6 +18,6 @@ module namespace G = "cbc.globals" ;
 
 declare namespace file = "http://expath.org/ns/file" ;
 
-declare variable $G:domain := "http://public.archi" ;
+declare variable $G:domain := "http://localhost:8080" ;
 declare variable $G:home := file:base-dir() ;
 declare variable $G:interface := fn:doc($G:home || "files/interface.xml") ;
