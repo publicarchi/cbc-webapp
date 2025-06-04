@@ -87,7 +87,7 @@ function getFiles($start, $count) {
     }
   return map{
     'meta': $meta,
-    'meetings': $content
+    'content': $content
   }
 };
 
@@ -117,7 +117,7 @@ function getFiles($start, $count) {
      }
    return map{
         'meta': $meta,
-        'meetings': $content
+        'content': $content
       }
  };
 
@@ -147,7 +147,7 @@ function getMeetings($start, $count) {
     }
   return map{
     "meta": $meta,
-    "meetings": $content
+    "content": $content
   }
 };
 
