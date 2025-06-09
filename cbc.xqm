@@ -577,11 +577,23 @@ function search($content) {
  :
  :)
 declare
-  %rest:path("/cbc/buildings")
+  %rest:path("/cbc/edifices")
   %rest:produces('application/json')
   %output:media-type('application/json')
   %output:method('json')
-function getBuildings() {
+function getEdifices() {
+
+};
+
+(:~
+ :
+ :)
+declare
+  %rest:path("/cbc/edifices/{$id}")
+  %rest:produces('application/json')
+  %output:media-type('application/json')
+  %output:method('json')
+function getEdificesById($id) {
 
 };
 
