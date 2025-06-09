@@ -341,7 +341,7 @@ declare
   %rest:produces('application/json')
   %output:media-type('application/json')
   %output:method('json')
-function getAffairsById($id) {
+function getAffairById($id) {
   let $affair := db:get("cbc")/conbavil/affairs/affair[@xml:id = $id]
   return cbc.models:affairToMap($affair)
 };
@@ -581,7 +581,9 @@ declare
   %rest:produces('application/json')
   %output:media-type('application/json')
   %output:method('json')
-function getEdifices() {
+  %rest:query-param("start", "{$start}", 1)
+  %rest:query-param("count", "{$count}", 20)
+function getEdifices($start, $count) {
 
 };
 
@@ -593,7 +595,7 @@ declare
   %rest:produces('application/json')
   %output:media-type('application/json')
   %output:method('json')
-function getEdificesById($id) {
+function getEdificeById($id) {
 
 };
 
