@@ -164,7 +164,7 @@ declare
   %rest:produces("application/json")
   %output:media-type("application/json")
   %output:method("json")
-function getMeeting($id) {
+function getMeetingById($id) {
   let $data := db:get('cbc')/conbavil/files/file/meetings/meeting[@xml:id = $id]
   let $meta := map {
     'title' : fn:normalize-space($data/title),
@@ -268,6 +268,8 @@ function getTypes() {
   }
 };
 
+(: @todo add types by id :)
+
 (:~
  : Resource function for categories
  : @return a collection of categories
@@ -282,7 +284,7 @@ function getCategories() {
   let $meta := {
     'title' : "Liste des catégories",
     'idno' : $G:domain || "/cbc/categories/",
-    'id' : 'categories',
+    'id' : "categories",
     'quantity' : fn:count($categories)
   }
   let $content := array {
@@ -296,78 +298,7 @@ function getCategories() {
   }
 };
 
-declare
-  %rest:path("/cbc/search")
-  %rest:produces('application/json')
-  %output:media-type('application/json')
-  %output:method('json')
-  %rest:POST("{$content}")
-function search($content) {
-  let $body := json:parse($content, map{'format': 'xquery'})
-  let $terms := $body('terms')
-  let $element := $body('element')
-  let $facets := $body('facets')
-
-  let $elements := db:get('cbcFt')//*[fn:name() = $element][
-    text() contains text {for $t in $terms return $t} all words
-  ]
-  (:~ let $dbFacets:= db:get('cbcFacets')
-  let $faceted := array {
-    for $f in $facets
-      for $val in $facets($f)
-        for $e in $dbFacets/*[fn:name() = $f]
-  } ~:)
-  let $meta := map {
-    'start' : xs:integer($body('meta')('start')),
-    'count' : xs:integer($body('meta')('count')),
-    'quantity' : fn:count($elements)
-  }
-  let $results := switch ($element)
-    case 'deliberation'
-      return array {
-        for $d in fn:subsequence($elements, $meta('start'), $meta('count'))
-        return cbc.models:deliberationToMap(
-          cbc.models:getDeliberation($d/@xml:id => fn:normalize-space(), $d/@meetingId => fn:normalize-space())
-        )
-      }
-    case 'affair'
-      return array{
-        for $d in fn:subsequence($elements, $meta('start'), $meta('count'))
-        return cbc.models:affairToMap(
-          cbc.models:getAffair($d/@xml:id => fn:normalize-space())
-        )
-      }
-    default return map{}
-
-  return map{
-    'meta': $meta,
-    'content': $results
-  }
-};
-
-
-(:~
- : This resource function returns all possible values
- : for faceted search
- :)
-declare
-  %rest:path("/cbc/facets")
-  %rest:produces('application/json')
-  %output:media-type('application/json')
-  %output:method('json')
-function getDeliberationFacets() {
-  map {
-    'commune': array { for $x in db:get('cbcFacets')//commune/@text return $x => fn:normalize-space()},
-    'region': array { for $x in db:get('cbcFacets')//region/@text return $x => fn:normalize-space()},
-    'departement': array { for $x in db:get('cbcFacets')//departement/@text return $x => fn:normalize-space()},
-    'departementAncien': array { for $x in db:get('cbcFacets')//departementAncien/@text return $x => fn:normalize-space()},
-    'projectGenre': array{ for $x in db:get('cbcFacets')//projectGenre/@text return $x => fn:normalize-space()},
-    'buildingType': array{ for $x in db:get('cbcFacets')//buildingType/label return $x => fn:normalize-space()},
-    'administrativeObject': array{ for $x in db:get('cbcFacets')//administrativeObject/@text return $x => fn:normalize-space()},
-    'participant': array{ for $x in db:get('cbcFacets')//participant/@persName return $x => fn:normalize-space()}
-  }
-};
-
+(: @todo add category by id :)
 
 (:~
  : This resource function lists all the deliberations
@@ -383,6 +314,9 @@ declare
 function getAffairs($start, $count) {
   let $affairs := db:get("cbc")/conbavil/affairs/affair
   let $meta := map {
+    'title' : "Liste des affaires",
+    'idno' : $G:domain || "/cbc/affairs/",
+    'id' : 'affairs',
     'start' : $start,
     'count' : $count,
     'quantity' : fn:count($affairs)
@@ -400,6 +334,7 @@ function getAffairs($start, $count) {
 (:~
  : This resource function lists all the reports
  : @return a json deliberation
+ : @todo
  :)
 declare
   %rest:path("/cbc/affairs/{$id}")
@@ -586,4 +521,100 @@ function postDeliberation($content) {
     default 
       return update:output(cbc.models:httpResponse(500, "Un problème est survenu, la ressource n'a pas pu être créée/modifiée."))
   
+};
+
+
+declare
+  %rest:path("/cbc/search")
+  %rest:produces('application/json')
+  %output:media-type('application/json')
+  %output:method('json')
+  %rest:POST("{$content}")
+function search($content) {
+  let $body := json:parse($content, map{'format': 'xquery'})
+  let $terms := $body('terms')
+  let $element := $body('element')
+  let $facets := $body('facets')
+
+  let $elements := db:get('cbcFt')//*[fn:name() = $element][
+    text() contains text {for $t in $terms return $t} all words
+  ]
+  (:~ let $dbFacets:= db:get('cbcFacets')
+  let $faceted := array {
+    for $f in $facets
+      for $val in $facets($f)
+        for $e in $dbFacets/*[fn:name() = $f]
+  } ~:)
+  let $meta := map {
+    'start' : xs:integer($body('meta')('start')),
+    'count' : xs:integer($body('meta')('count')),
+    'quantity' : fn:count($elements)
+  }
+  let $results := switch ($element)
+    case 'deliberation'
+      return array {
+        for $d in fn:subsequence($elements, $meta('start'), $meta('count'))
+        return cbc.models:deliberationToMap(
+          cbc.models:getDeliberation($d/@xml:id => fn:normalize-space(), $d/@meetingId => fn:normalize-space())
+        )
+      }
+    case 'affair'
+      return array{
+        for $d in fn:subsequence($elements, $meta('start'), $meta('count'))
+        return cbc.models:affairToMap(
+          cbc.models:getAffair($d/@xml:id => fn:normalize-space())
+        )
+      }
+    default return map{}
+
+  return map{
+    'meta': $meta,
+    'content': $results
+  }
+};
+
+(:~
+ :
+ :)
+declare
+  %rest:path("/cbc/buildings")
+  %rest:produces('application/json')
+  %output:media-type('application/json')
+  %output:method('json')
+function getBuildings() {
+
+};
+
+(:~
+ :
+ :)
+declare
+  %rest:path("/cbc/persons")
+  %rest:produces('application/json')
+  %output:media-type('application/json')
+  %output:method('json')
+function getPersons() {
+
+};
+
+(:~
+ : This resource function returns all possible values
+ : for faceted search
+ :)
+declare
+  %rest:path("/cbc/facets")
+  %rest:produces('application/json')
+  %output:media-type('application/json')
+  %output:method('json')
+function getDeliberationFacets() {
+  map {
+    'commune': array { for $x in db:get('cbcFacets')//commune/@text return $x => fn:normalize-space()},
+    'region': array { for $x in db:get('cbcFacets')//region/@text return $x => fn:normalize-space()},
+    'departement': array { for $x in db:get('cbcFacets')//departement/@text return $x => fn:normalize-space()},
+    'departementAncien': array { for $x in db:get('cbcFacets')//departementAncien/@text return $x => fn:normalize-space()},
+    'projectGenre': array{ for $x in db:get('cbcFacets')//projectGenre/@text return $x => fn:normalize-space()},
+    'buildingType': array{ for $x in db:get('cbcFacets')//buildingType/label return $x => fn:normalize-space()},
+    'administrativeObject': array{ for $x in db:get('cbcFacets')//administrativeObject/@text return $x => fn:normalize-space()},
+    'participant': array{ for $x in db:get('cbcFacets')//participant/@persName return $x => fn:normalize-space()}
+  }
 };

@@ -236,8 +236,8 @@ declare function deliberationToMap($deliberation as element()) as map(*) {
  let $result := map{
       "meetingId": $deliberation/meetingId => fn:normalize-space(),
       "affairId": $deliberation/affairId => fn:normalize-space(),
-      "seance" : $deliberation/parent::deliberations/parent::meeting/date/@when => fn:normalize-space(),
-      "cote" : $deliberation/parent::deliberations/parent::meeting/parent::meetings/parent::file/idno => fn:normalize-space(),
+      "meeting" : $deliberation/parent::deliberations/parent::meeting/date/@when => fn:normalize-space(),
+      "idno" : $deliberation/parent::deliberations/parent::meeting/parent::meetings/parent::file/idno => fn:normalize-space(),
       "id" : $deliberation/@xml:id => fn:normalize-space(),
       "title" : $deliberation/title => fn:normalize-space(),
       "altTitle" : $deliberation/altTitle => fn:normalize-space(),
@@ -292,8 +292,8 @@ declare function meetingToMap($meeting as element(meeting)) as map(*) {
     "id": $meeting/@xml:id => fn:normalize-space(),
     "title" : $meeting/title => fn:normalize-space(), (: @todo deal with mix content:)
     "date" : $meeting/date/@when => fn:normalize-space(),
-    "cote" : $meeting/parent::meetings/parent::file/idno => fn:normalize-space(),
-    "coteDev" : $meeting/parent::meetings/parent::file/title => fn:normalize-space(),
+    "idno" : $meeting/parent::meetings/parent::file/idno => fn:normalize-space(),
+    "idnoDesc" : $meeting/parent::meetings/parent::file/title => fn:normalize-space(),
     "pages" : getPages($meeting, map{}),
     "nb" : $meeting/deliberations/deliberation => fn:count(),
     "projectTypes" : array{ extractBuildingTypes($meeting) },
