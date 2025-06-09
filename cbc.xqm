@@ -402,7 +402,7 @@ function getAffairs($start, $count) {
  : @return a json deliberation
  :)
 declare
-  %rest:path("/cbc/affaires/{$id}")
+  %rest:path("/cbc/affairs/{$id}")
   %rest:produces('application/json')
   %output:media-type('application/json')
   %output:method('json')
@@ -416,7 +416,7 @@ function getAffairsById($id) {
  : @todo change path
  :)
 declare
-  %rest:path("/cbc/affaires/fromDeliberations")
+  %rest:path("/cbc/affairs/fromDeliberations")
   %rest:POST("{$content}")
   %rest:produces('application/json')
   %output:media-type('application/json')
@@ -444,7 +444,7 @@ function affairesFromDeliberations($content) {
  : @todo add id
  :)
 declare
-  %rest:path("/cbc/affaires/post")
+  %rest:path("/cbc/affairs/post")
   %rest:POST("{$content}")
   %rest:produces('application/json')
   %output:media-type('text/plain; charset=utf-8')
