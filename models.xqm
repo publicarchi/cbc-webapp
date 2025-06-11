@@ -37,36 +37,175 @@ declare default function namespace "cbc.models" ;
 declare default collation "http://basex.org/collation?lang=fr" ;
 
 (:~
+ : This function get the deliberations
+ :)
+declare function getDeliberation($id as xs:string, $meetingId as xs:string) as element() {
+   db:get('cbc')/conbavil/files/file/meetings
+        /meeting[@xml:id = $meetingId]
+        //deliberation[@xml:id = $id]
+};
+
+declare function getAffair($id as xs:string) as element() {
+   db:get('cbc')/conbavil//affair[@xml:id = $id]
+};
+
+declare function deliberationToMap($deliberation as element()) as map(*) {
+ let $result := map{
+      "meetingId": $deliberation/meetingId => fn:normalize-space(),
+      "affairId": $deliberation/affairId => fn:normalize-space(),
+      "meeting" : $deliberation/parent::deliberations/parent::meeting/date/@when => fn:normalize-space(),
+      "idno" : $deliberation/parent::deliberations/parent::meeting/parent::meetings/parent::file/idno => fn:normalize-space(),
+      "id" : $deliberation/@xml:id => fn:normalize-space(),
+      "title" : $deliberation/title => fn:normalize-space(),
+      "altTitle" : $deliberation/altTitle => fn:normalize-space(),
+      "item" : $deliberation/item => fn:normalize-space(),
+      "pages" : $deliberation/pages => fn:normalize-space(),
+      "localisation" : map {
+        "commune" : $deliberation/localisation/commune[.!=@type] => fn:normalize-space(),
+        "communeAncien" : $deliberation/localisation/commune[@type="orig"] => fn:normalize-space(),
+        "adress" : $deliberation/localisation/adresse[@type="orig"] => fn:normalize-space(),
+        "departementDecimal" : $deliberation/localisation/departement[@type="decimal"] => fn:normalize-space(),
+        "departement" : $deliberation/localisation/departement[fn:not(@type)] => fn:normalize-space(),
+        "region" : $deliberation/localisation/region => fn:normalize-space()
+      },
+      "buildingTypes" : extractBuildingTypes($deliberation),
+      "projectGenres" : extractProjectGenres($deliberation),
+      "administrativeObjects": extractAdministrativeObjects($deliberation),
+      "report" : $deliberation/report/author => fn:normalize-space(),
+      "recommendation" : $deliberation/recommendation => fn:normalize-space(),
+      "advice" : $deliberation//advice => fn:normalize-space()
+    }
+    return $result
+};
+
+declare function affairToMap($affair as element()) as map(*) {
+  let $result := map{
+    'id': $affair/[@xml:id] => fn:normalize-space(),
+    'title': $affair/title => fn:normalize-space(),
+    'localisation': map{
+      'commune': $affair/localisation/commune => fn:normalize-space(),
+      'departementDecimal': $affair/localisation/departementDecimal => fn:normalize-space(),
+      'departement': $affair/localisation/departement => fn:normalize-space(),
+      'departementAncien': $affair/localisation/departementAncien => fn:normalize-space(),
+      'region': $affair/localisation/region => fn:normalize-space()
+    },
+    'types': extractBuildingTypes($affair),
+	  'deliberations': array{
+      for $deliberation in $affair/deliberations/deliberation
+      let $id := $deliberation/[@id] => fn:normalize-space()
+      let $meetingId := $deliberation/[@meetingId] => fn:normalize-space()
+      let $d := db:get("cbc")/conbavil/files/file/meetings/meeting[@xml:id = $meetingId]/deliberations/deliberation[@xml:id = $id]
+      return deliberationToMap($d)
+    },
+    'meta': metaToArray($affair)
+  }
+  return $result
+};
+
+(:
+~:)
+declare function meetingToMap($meeting as element(meeting)) as map(*) {
+  map {
+    "id": $meeting/@xml:id => fn:normalize-space(),
+    "title" : $meeting/title => fn:normalize-space(), (: @todo deal with mix content:)
+    "date" : $meeting/date/@when => fn:normalize-space(),
+    "idno" : $meeting/parent::meetings/parent::file/idno => fn:normalize-space(),
+    "idnoDesc" : $meeting/parent::meetings/parent::file/title => fn:normalize-space(),
+    "pages" : getPages($meeting, map{}),
+    "nb" : $meeting/deliberations/deliberation => fn:count(),
+    "projectTypes" : array{ extractBuildingTypes($meeting) },
+    "projectGenres" : array{ extractProjectGenres($meeting) },
+    "deliberations" : array{
+      for $deliberation in $meeting/deliberations/deliberation
+      return deliberationToMap($deliberation)
+    }
+  }
+};
+
+
+
+
+(:~
+ : this function get metting pagination
+ : @param $meeting the meeting id
+ : @param $outputParams the serialization params
+ : @return a amp with label and interval
+ : @bug the behavior is not complete
+ : @todo add explicit pagination to paginate IIIF
+ :)
+declare function getPages($meeting as element(), $params as map(*)) as map(*) {
+  let $pages := $meeting/deliberations/deliberation/pages ! fn:analyze-string(., '\d+')//fn:match
+    => fn:distinct-values()
+    => fn:sort()
+  return
+    if (fn:count($pages) >1)
+    then map {
+      "label" : "pp.",
+      "pages" : $pages[1] || "-" || $pages[fn:last()]
+    }
+    else map {
+      "label" : "p.",
+      "pages" : $pages[1]
+    }
+};
+
+declare function extractBuildingTypes($element as element()) as item()* {
+  let $buildingType := $element//categories/category[@type="buildingType"]
+    => fn:distinct-values()
+  return array { $buildingType }
+};
+
+declare function extractProjectGenres($element as element()) as item()* {
+  let $categories := $element//categories/category[@type="projectGenre"]
+    => fn:distinct-values()
+  return array { $categories }
+};
+
+declare function extractAdministrativeObjects($element as element()) as item()* {
+  let $categories := $element//categories/category[@type="administrativeObject"]
+    => fn:distinct-values()
+  return array { $categories }
+};
+
+declare function httpResponse($code as xs:integer, $msg as xs:string) as item()+ {
+  let $res := (
+     <rest:response>
+          <http:response status="{$code}" message="">
+            <http:header name="Content-Language" value="fr"/>
+            <http:header name="Content-Type" value="text/plain; charset=utf-8"/>
+          </http:response>
+        </rest:response>,
+        map {
+          "message" : $msg
+        }
+  )
+  return $res
+};
+
+declare function metaToArray($element as element()) as array(*) {
+  let $meta := array{
+    for $m in $element//change
+    return map {
+        'type': $m/[@type] => fn:normalize-space(),
+        'when': $m/[@when] => fn:normalize-space(),
+        'who': $m/[@who] => fn:normalize-space()
+      }
+  }
+  return $meta
+};
+
+
+(:~
+ : helpers
+ :)
+
+(:~
  : this function return a mime-type for a specified file
  : @param  $name  file name
  : @return a mime type for the specified file
  :)
 declare function mime-type($name as xs:string) as xs:string {
     fetch:content-type($name)
-};
-
-(:~
- : this function calls a wrapper
- : @param $content the content to serialize
- : @param $outputParams the output params
- : @return an updated document and instantiated pattern
- :)
-declare function wrapper($content as map(*), $outputParams as map(*)) as node()* {
-  let $layout := file:base-dir() || "files/" || map:get($outputParams, 'layout')
-  let $wrap := fn:doc($layout)
-  let $regex := '\{(.+?)\}'
-  return
-    $wrap/* update {
-      for $node in .//*[fn:matches(text(), $regex)] | .//@*[fn:matches(., $regex)]
-      let $key := fn:analyze-string($node, $regex)//fn:group/text()
-      return switch ($key)
-        case 'model' return replace node $node with getModels($content)
-        case 'trigger' return replace node $node with getTriggers($content)
-        case 'form' return replace node $node with getForms($content)
-        case 'data' return replace node $node with $content?data
-        case 'content' return replace node $node with $outputParams?mapping
-        default return associate($content, $outputParams, $node)
-      }
 };
 
 (:~
@@ -166,154 +305,25 @@ declare function getXsltPath($queryParam, $xsl) {
 };
 
 (:~
- : this function get metting pagination
- : @param $meeting the meeting id
- : @param $outputParams the serialization params
- : @return a amp with label and interval
- : @bug the behavior is not complete
- : @todo add explicit pagination to paginate IIIF
+ : this function calls a wrapper
+ : @param $content the content to serialize
+ : @param $outputParams the output params
+ : @return an updated document and instantiated pattern
  :)
-declare function getPages($meeting as element(), $params as map(*)) as map(*) {
-  let $pages := $meeting/deliberations/deliberation/pages ! fn:analyze-string(., '\d+')//fn:match
-    => fn:distinct-values()
-    => fn:sort()
+declare function wrapper($content as map(*), $outputParams as map(*)) as node()* {
+  let $layout := file:base-dir() || "files/" || map:get($outputParams, 'layout')
+  let $wrap := fn:doc($layout)
+  let $regex := '\{(.+?)\}'
   return
-    if (fn:count($pages) >1)
-    then map {
-      "label" : "pp.",
-      "pages" : $pages[1] || "-" || $pages[fn:last()]
-    }
-    else map {
-      "label" : "p.",
-      "pages" : $pages[1]
-    }
-};
-
-declare function extractBuildingTypes($element as element()) as item()* {
-  let $buildingType := $element//categories/category[@type="buildingType"]
-    => fn:distinct-values()
-  return array { $buildingType }
-};
-
-declare function extractProjectGenres($element as element()) as item()* {
-  let $categories := $element//categories/category[@type="projectGenre"]
-    => fn:distinct-values()
-  return array { $categories }
-};
-
-declare function extractAdministrativeObjects($element as element()) as item()* {
-  let $categories := $element//categories/category[@type="administrativeObject"]
-    => fn:distinct-values()
-  return array { $categories }
-};
-
-declare function httpResponse($code as xs:integer, $msg as xs:string) as item()+ {
-  let $res := (
-     <rest:response>
-          <http:response status="{$code}" message="">
-            <http:header name="Content-Language" value="fr"/>
-            <http:header name="Content-Type" value="text/plain; charset=utf-8"/>
-          </http:response>
-        </rest:response>,
-        map {
-          "message" : $msg
-        }
-  )
-  return $res
-};
-
-declare function getDeliberation($id as xs:string, $meetingId as xs:string) as element() {
-   db:get('cbc')/conbavil/files/file/meetings
-        /meeting[@xml:id = $meetingId]
-        //deliberation[@xml:id = $id]
-};
-
-declare function getAffair($id as xs:string) as element() {
-   db:get('cbc')/conbavil//affair[@xml:id = $id]
-};
-
-declare function deliberationToMap($deliberation as element()) as map(*) {
- let $result := map{
-      "meetingId": $deliberation/meetingId => fn:normalize-space(),
-      "affairId": $deliberation/affairId => fn:normalize-space(),
-      "meeting" : $deliberation/parent::deliberations/parent::meeting/date/@when => fn:normalize-space(),
-      "idno" : $deliberation/parent::deliberations/parent::meeting/parent::meetings/parent::file/idno => fn:normalize-space(),
-      "id" : $deliberation/@xml:id => fn:normalize-space(),
-      "title" : $deliberation/title => fn:normalize-space(),
-      "altTitle" : $deliberation/altTitle => fn:normalize-space(),
-      "item" : $deliberation/item => fn:normalize-space(),
-      "pages" : $deliberation/pages => fn:normalize-space(),
-      "localisation" : map {
-        "commune" : $deliberation/localisation/commune[.!=@type] => fn:normalize-space(),
-        "communeAncien" : $deliberation/localisation/commune[@type="orig"] => fn:normalize-space(),
-        "adress" : $deliberation/localisation/adresse[@type="orig"] => fn:normalize-space(),
-        "departementDecimal" : $deliberation/localisation/departement[@type="decimal"] => fn:normalize-space(),
-        "departement" : $deliberation/localisation/departement[fn:not(@type)] => fn:normalize-space(),
-        "region" : $deliberation/localisation/region => fn:normalize-space()
-      },
-      "buildingTypes" : extractBuildingTypes($deliberation),
-      "projectGenres" : extractProjectGenres($deliberation),
-      "administrativeObjects": extractAdministrativeObjects($deliberation),
-      "report" : $deliberation/report/author => fn:normalize-space(),
-      "recommendation" : $deliberation/recommendation => fn:normalize-space(),
-      "advice" : $deliberation//advice => fn:normalize-space()
-    }
-    return $result
-};
-
-declare function affairToMap($affair as element()) as map(*) {
-  let $result := map{
-    'id': $affair/[@xml:id] => fn:normalize-space(),
-    'title': $affair/title => fn:normalize-space(),
-    'localisation': map{
-      'commune': $affair/localisation/commune => fn:normalize-space(),
-      'departementDecimal': $affair/localisation/departementDecimal => fn:normalize-space(),
-      'departement': $affair/localisation/departement => fn:normalize-space(),
-      'departementAncien': $affair/localisation/departementAncien => fn:normalize-space(),
-      'region': $affair/localisation/region => fn:normalize-space()
-    },
-    'types': extractBuildingTypes($affair),
-	  'deliberations': array{
-      for $deliberation in $affair/deliberations/deliberation
-      let $id := $deliberation/[@id] => fn:normalize-space()
-      let $meetingId := $deliberation/[@meetingId] => fn:normalize-space()
-      let $d := db:get("cbc")/conbavil/files/file/meetings/meeting[@xml:id = $meetingId]/deliberations/deliberation[@xml:id = $id]
-      return deliberationToMap($d)
-    },
-    'meta': metaToArray($affair)
-  }
-  return $result
-};
-
-(:
-~:)
-declare function meetingToMap($meeting as element(meeting)) as map(*) {
-  map {
-    "id": $meeting/@xml:id => fn:normalize-space(),
-    "title" : $meeting/title => fn:normalize-space(), (: @todo deal with mix content:)
-    "date" : $meeting/date/@when => fn:normalize-space(),
-    "idno" : $meeting/parent::meetings/parent::file/idno => fn:normalize-space(),
-    "idnoDesc" : $meeting/parent::meetings/parent::file/title => fn:normalize-space(),
-    "pages" : getPages($meeting, map{}),
-    "nb" : $meeting/deliberations/deliberation => fn:count(),
-    "projectTypes" : array{ extractBuildingTypes($meeting) },
-    "projectGenres" : array{ extractProjectGenres($meeting) },
-    "deliberations" : array{
-      for $deliberation in $meeting/deliberations/deliberation
-      return deliberationToMap($deliberation)
-    }
-  }
-};
-
-
-declare function metaToArray($element as element()) as array(*) {
-  let $meta := array{
-    for $m in $element//change
-    return map {
-        'type': $m/[@type] => fn:normalize-space(),
-        'when': $m/[@when] => fn:normalize-space(),
-        'who': $m/[@who] => fn:normalize-space()
+    $wrap/* update {
+      for $node in .//*[fn:matches(text(), $regex)] | .//@*[fn:matches(., $regex)]
+      let $key := fn:analyze-string($node, $regex)//fn:group/text()
+      return switch ($key)
+        case 'model' return replace node $node with getModels($content)
+        case 'trigger' return replace node $node with getTriggers($content)
+        case 'form' return replace node $node with getForms($content)
+        case 'data' return replace node $node with $content?data
+        case 'content' return replace node $node with $outputParams?mapping
+        default return associate($content, $outputParams, $node)
       }
-  }
-  return $meta
 };

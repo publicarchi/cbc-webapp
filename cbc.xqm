@@ -58,8 +58,11 @@ function home() {
 };
 
 (:~
- : Resource function for files
- : @return a collection of files
+ : Resource function for the files
+ : @param $start the item position to start from
+ : @param $count the number of item to return
+ : @return a json collection of files
+ : @todo change key
  :)
 declare
   %rest:path("/cbc/files")
@@ -88,14 +91,14 @@ function getFiles($start, $count) {
     }
   return map{
     'meta': $meta,
-    'meetings': $content
+    'files': $content
   }
 };
 
 (:~
- : Resource function for file
+ : Resource function for a file
  : @param $id file id
- : @return a file description
+ : @return a json representation of a file
  :)
  declare
    %rest:path("/cbc/files/{$id}")
@@ -119,13 +122,15 @@ function getFiles($start, $count) {
      }
    return map{
         'meta': $meta,
-        'meetings': $content
+        'files': $content
       }
  };
 
 (:~
  : Resource function for meetings
- : @return a collection of reports
+ : @param $start the item position to start from
+ : @param $count the number of item to return
+ : @return a json collection of reports
  :)
 declare
   %rest:path("/cbc/meetings")
@@ -155,9 +160,9 @@ function getMeetings($start, $count) {
 };
 
 (:~
- : Resource function for meeting
+ : Resource function for a meeting
  : @param $id meeting id
- : @return a report
+ : @return a json meeting representation
  :)
 declare
   %rest:path("/cbc/meetings/{$id}")
@@ -180,8 +185,10 @@ function getMeetingById($id) {
 };
 
 (:~
- : This resource function lists all the deliberations
- : @return a collection of deliberations
+ : Resource function for the deliberations
+ : @param $start the item position to start from
+ : @param $count the number of item to return
+ : @return a json collection of deliberations
  :)
 declare
   %rest:path("/cbc/deliberations")
@@ -213,7 +220,7 @@ function getDeliberations($start, $count) {
 (:~
  : Resource function for deliberation
  : @param $id deliberation id
- : @return a deliberation
+ : @return a json representation of a deliberation
  :)
 declare
   %rest:path("/cbc/deliberations/{$id}")
@@ -242,7 +249,7 @@ function getDeliberationById($id) {
 
 (:~
  : Resource function for types
- : @return a collection of types
+ : @return a json collection of types
  :)
 declare
   %rest:path("/cbc/types")
@@ -272,7 +279,7 @@ function getTypes() {
 
 (:~
  : Resource function for categories
- : @return a collection of categories
+ : @return a json collection of categories
  :)
 declare
   %rest:path("/cbc/categories")
@@ -301,7 +308,9 @@ function getCategories() {
 (: @todo add category by id :)
 
 (:~
- : This resource function lists all the deliberations
+ : Resource function for affairs
+ : @param $start the item position to start from
+ : @param $count the number of item to return
  : @return an json collection of deliberations
  :)
 declare
@@ -332,8 +341,9 @@ function getAffairs($start, $count) {
 };
 
 (:~
- : This resource function lists all the reports
- : @return a json deliberation
+ : Resource fonction for an affair
+ : @id the affair id
+ : @return a json representation of an affair
  : @todo
  :)
 declare
@@ -523,7 +533,113 @@ function postDeliberation($content) {
   
 };
 
+(:~
+ : Resource function of the edifices
+ : @param $start the item position to start from
+ : @param $count the number of item to return
+ : @return a json collection of edifices
+ :)
+declare
+  %rest:path("/cbc/edifices")
+  %rest:produces('application/json')
+  %output:media-type('application/json')
+  %output:method('json')
+  %rest:query-param("start", "{$start}", 1)
+  %rest:query-param("count", "{$count}", 20)
+function getEdifices($start, $count) {
 
+};
+
+(:~
+ : Resource function to an edifice
+ : @param $id the edifice id
+ : @return a json representation of the edifice
+ :)
+declare
+  %rest:path("/cbc/edifices/{$id}")
+  %rest:produces('application/json')
+  %output:media-type('application/json')
+  %output:method('json')
+function getEdificeById($id) {
+  let $data := db:get('cbc')/conbavil/edifices/edifice[@xml:id = $id]
+  let $meta := map {
+    'title' : fn:normalize-space($data/title),
+    'idno' : $G:domain || "/cbc/edifices/" || $id,
+    'id' : $id,
+    'nbDeliberations' : fn:count($data/deliberations/deliberation)
+  }
+  let $content := "cbc.models:edificesToMap($data)"
+  return map {
+    'meta' : $meta,
+    'content' : $content
+  }
+};
+
+(:~
+ : Resource function for a prosopographical content
+ : @param $start the item position to start from
+ : @param $count the number of item to return
+ : @return a json collection of persons
+ :)
+declare
+  %rest:path("/cbc/persons")
+  %rest:produces('application/json')
+  %output:media-type('application/json')
+  %output:method('json')
+  %rest:query-param("start", "{$start}", 1)
+  %rest:query-param("count", "{$count}", 20)
+function getPersons($start, $count) {
+  ''
+};
+
+(:~
+ : Resource function for a person
+ : $id the person id
+ : @return a json representation of a person
+ :)
+declare
+  %rest:path("/cbc/persons/{$id}")
+  %rest:produces('application/json')
+  %output:media-type('application/json')
+  %output:method('json')
+function getPersons($id) {
+  let $data := ''
+  let $meta := ''
+  let $content := ''
+  return map {
+      'meta' : $meta,
+      'content' : $content
+    }
+};
+
+(:~
+ : This resource function returns all possible values
+ : for faceted search
+ :)
+declare
+  %rest:path("/cbc/facets")
+  %rest:produces('application/json')
+  %output:media-type('application/json')
+  %output:method('json')
+function getDeliberationFacets() {
+  map {
+    'commune': array { for $x in db:get('cbcFacets')//commune/@text return $x => fn:normalize-space()},
+    'region': array { for $x in db:get('cbcFacets')//region/@text return $x => fn:normalize-space()},
+    'departement': array { for $x in db:get('cbcFacets')//departement/@text return $x => fn:normalize-space()},
+    'departementAncien': array { for $x in db:get('cbcFacets')//departementAncien/@text return $x => fn:normalize-space()},
+    'projectGenre': array{ for $x in db:get('cbcFacets')//projectGenre/@text return $x => fn:normalize-space()},
+    'buildingType': array{ for $x in db:get('cbcFacets')//buildingType/label return $x => fn:normalize-space()},
+    'administrativeObject': array{ for $x in db:get('cbcFacets')//administrativeObject/@text return $x => fn:normalize-space()},
+    'participant': array{ for $x in db:get('cbcFacets')//participant/@persName return $x => fn:normalize-space()}
+  }
+};
+
+(:~
+ : This resource function is a search
+ : @param $content string content
+ : @return cases and affairs
+ : @todo output to revise
+ :)
 declare
   %rest:path("/cbc/search")
   %rest:produces('application/json')
@@ -570,65 +686,5 @@ function search($content) {
   return map{
     'meta': $meta,
     'content': $results
-  }
-};
-
-(:~
- :
- :)
-declare
-  %rest:path("/cbc/edifices")
-  %rest:produces('application/json')
-  %output:media-type('application/json')
-  %output:method('json')
-  %rest:query-param("start", "{$start}", 1)
-  %rest:query-param("count", "{$count}", 20)
-function getEdifices($start, $count) {
-
-};
-
-(:~
- :
- :)
-declare
-  %rest:path("/cbc/edifices/{$id}")
-  %rest:produces('application/json')
-  %output:media-type('application/json')
-  %output:method('json')
-function getEdificeById($id) {
-
-};
-
-(:~
- :
- :)
-declare
-  %rest:path("/cbc/persons")
-  %rest:produces('application/json')
-  %output:media-type('application/json')
-  %output:method('json')
-function getPersons() {
-
-};
-
-(:~
- : This resource function returns all possible values
- : for faceted search
- :)
-declare
-  %rest:path("/cbc/facets")
-  %rest:produces('application/json')
-  %output:media-type('application/json')
-  %output:method('json')
-function getDeliberationFacets() {
-  map {
-    'commune': array { for $x in db:get('cbcFacets')//commune/@text return $x => fn:normalize-space()},
-    'region': array { for $x in db:get('cbcFacets')//region/@text return $x => fn:normalize-space()},
-    'departement': array { for $x in db:get('cbcFacets')//departement/@text return $x => fn:normalize-space()},
-    'departementAncien': array { for $x in db:get('cbcFacets')//departementAncien/@text return $x => fn:normalize-space()},
-    'projectGenre': array{ for $x in db:get('cbcFacets')//projectGenre/@text return $x => fn:normalize-space()},
-    'buildingType': array{ for $x in db:get('cbcFacets')//buildingType/label return $x => fn:normalize-space()},
-    'administrativeObject': array{ for $x in db:get('cbcFacets')//administrativeObject/@text return $x => fn:normalize-space()},
-    'participant': array{ for $x in db:get('cbcFacets')//participant/@persName return $x => fn:normalize-space()}
   }
 };
