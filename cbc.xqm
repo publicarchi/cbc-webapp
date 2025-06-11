@@ -86,7 +86,8 @@ function getFiles($start, $count) {
     return map {
         'title' : fn:normalize-space($file/title), (: @todo deal with mix content:)
         'idno' : $G:domain || "/cbc/files/" || $file/@xml:id,
-        'id' : ( $file/@xml:id => fn:string() )
+        'id' : ( $file/@xml:id => fn:string() ),
+        'nbMeetings' : fn:count($file/meetings/meeting)
       }
     }
   return map{

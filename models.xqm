@@ -50,11 +50,12 @@ declare function getAffair($id as xs:string) as element() {
 };
 
 declare function deliberationToMap($deliberation as element()) as map(*) {
+let $meeting := $deliberation/parent::deliberations/parent::meeting
  let $result := map{
-      "meetingId": $deliberation/meetingId => fn:normalize-space(),
+      "meetingId": $meeting/@xml:id => fn:normalize-space(),
       "affairId": $deliberation/affairId => fn:normalize-space(),
-      "meeting" : $deliberation/parent::deliberations/parent::meeting/date/@when => fn:normalize-space(),
-      "idno" : $deliberation/parent::deliberations/parent::meeting/parent::meetings/parent::file/idno => fn:normalize-space(),
+      "date" : $meeting/date/@when => fn:normalize-space(),
+      "idno" : $meeting/idno => fn:normalize-space(),
       "id" : $deliberation/@xml:id => fn:normalize-space(),
       "title" : $deliberation/title => fn:normalize-space(),
       "altTitle" : $deliberation/altTitle => fn:normalize-space(),
@@ -107,9 +108,9 @@ declare function affairToMap($affair as element()) as map(*) {
 declare function meetingToMap($meeting as element(meeting)) as map(*) {
   map {
     "id": $meeting/@xml:id => fn:normalize-space(),
+    "idno" : $meeting/parent::meetings/parent::file/idno => fn:normalize-space(),
     "title" : $meeting/title => fn:normalize-space(), (: @todo deal with mix content:)
     "date" : $meeting/date/@when => fn:normalize-space(),
-    "idno" : $meeting/parent::meetings/parent::file/idno => fn:normalize-space(),
     "idnoDesc" : $meeting/parent::meetings/parent::file/title => fn:normalize-space(),
     "pages" : getPages($meeting, map{}),
     "nb" : $meeting/deliberations/deliberation => fn:count(),
@@ -122,18 +123,15 @@ declare function meetingToMap($meeting as element(meeting)) as map(*) {
   }
 };
 
-
-
-
 (:~
- : this function get metting pagination
+ : this function get meeting pagination
  : @param $meeting the meeting id
  : @param $outputParams the serialization params
  : @return a amp with label and interval
  : @bug the behavior is not complete
  : @todo add explicit pagination to paginate IIIF
  :)
-declare function getPages($meeting as element(), $params as map(*)) as map(*) {
+declare function getPages($content as element(), $params as map(*)) as map(*) {
   let $pages := $meeting/deliberations/deliberation/pages ! fn:analyze-string(., '\d+')//fn:match
     => fn:distinct-values()
     => fn:sort()
