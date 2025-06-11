@@ -103,23 +103,33 @@ declare function affairToMap($affair as element()) as map(*) {
   return $result
 };
 
-(:
-~:)
+(:~
+ : This fonction convert the meeting to a json content
+ : @param $meeting the meeting to convert
+ : @return a content map for the meeting
+ : @status values checked
+ : @todo add affairs content
+ : @todo add edifices content
+ :)
 declare function meetingToMap($meeting as element(meeting)) as map(*) {
   map {
     "id": $meeting/@xml:id => fn:normalize-space(),
-    "idno" : $meeting/parent::meetings/parent::file/idno => fn:normalize-space(),
+    "file" : $meeting/idno => fn:normalize-space(),
     "title" : $meeting/title => fn:normalize-space(), (: @todo deal with mix content:)
     "date" : $meeting/date/@when => fn:normalize-space(),
-    "idnoDesc" : $meeting/parent::meetings/parent::file/title => fn:normalize-space(),
     "pages" : getPages($meeting, map{}),
-    "nb" : $meeting/deliberations/deliberation => fn:count(),
+    "nbDeliberations" : $meeting/deliberations/deliberation => fn:count(),
     "projectTypes" : array{ extractBuildingTypes($meeting) },
     "projectGenres" : array{ extractProjectGenres($meeting) },
     "deliberations" : array{
       for $deliberation in $meeting/deliberations/deliberation
       return deliberationToMap($deliberation)
-    }
+    },
+    "affairs" : array{},
+    "edifices" : array{},
+    "participants" : "",
+    "rermakable" : "rmq",
+    "idno" : $G:domain || "/cbc/meeting/" || $meeting/@xml:id
   }
 };
 
@@ -130,9 +140,10 @@ declare function meetingToMap($meeting as element(meeting)) as map(*) {
  : @return a amp with label and interval
  : @bug the behavior is not complete
  : @todo add explicit pagination to paginate IIIF
+ : @todo get page for meeting
  :)
 declare function getPages($content as element(), $params as map(*)) as map(*) {
-  let $pages := $meeting/deliberations/deliberation/pages ! fn:analyze-string(., '\d+')//fn:match
+  let $pages := $content/deliberations/deliberation/pages ! fn:analyze-string(., '\d+')//fn:match
     => fn:distinct-values()
     => fn:sort()
   return
