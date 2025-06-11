@@ -91,7 +91,7 @@ function getFiles($start, $count) {
     }
   return map{
     'meta': $meta,
-    'files': $content
+    'content': $content
   }
 };
 
@@ -121,9 +121,9 @@ function getFiles($start, $count) {
        'nbDeliberations' : fn:count($data/meetings/meeting/deliberations/deliberation)
      }
    return map{
-        'meta': $meta,
-        'files': $content
-      }
+     'meta': $meta,
+     'content': $content
+     }
  };
 
 (:~
@@ -155,7 +155,7 @@ function getMeetings($start, $count) {
     }
   return map{
     "meta": $meta,
-    "meetings": $content
+    "content": $content
   }
 };
 
